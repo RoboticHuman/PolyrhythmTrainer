@@ -29,6 +29,14 @@ class SessionStats:
     def __init__(self):
         self.reset()
 
+    # Score points per rating
+    SCORE_VALUES = {
+        HitRating.PERFECT: 100,
+        HitRating.GOOD: 50,
+        HitRating.OK: 10,
+        HitRating.MISS: 0,
+    }
+
     def reset(self):
         self.total_hits = 0
         self.ratings = {
@@ -37,12 +45,18 @@ class SessionStats:
             HitRating.OK: 0,
             HitRating.MISS: 0,
         }
-        self.deviations: list[float] = []  # Signed deviations in ms
+        self.deviations: list[float] = []
         self.streak = 0
         self.best_streak = 0
         self.last_rating = ""
         self.last_deviation_ms = 0.0
-        self.missed_beats = 0  # Beats that passed with no input
+        self.missed_beats = 0
+
+        # Combo & score
+        self.combo = 0
+        self.best_combo = 0
+        self.combo_multiplier = 1.0
+        self.score = 0
 
     def record_hit(self, deviation_ms: float) -> str:
         """Record a hit and return its rating."""
@@ -53,11 +67,28 @@ class SessionStats:
         self.last_rating = rating
         self.last_deviation_ms = deviation_ms
 
+        # Streak (perfect + good only)
         if rating in (HitRating.PERFECT, HitRating.GOOD):
             self.streak += 1
             self.best_streak = max(self.best_streak, self.streak)
         else:
             self.streak = 0
+
+        # Combo (perfect + good build, ok keeps but doesn't grow, miss resets)
+        if rating in (HitRating.PERFECT, HitRating.GOOD):
+            self.combo += 1
+        elif rating == HitRating.OK:
+            pass  # Combo holds but doesn't grow
+        else:
+            self.combo = 0
+        self.best_combo = max(self.best_combo, self.combo)
+
+        # Multiplier: 1.0x base, +0.1x per 5 combo hits, caps at 3.0x
+        self.combo_multiplier = min(3.0, 1.0 + (self.combo // 5) * 0.1)
+
+        # Score
+        base_points = self.SCORE_VALUES.get(rating, 0)
+        self.score += int(base_points * self.combo_multiplier)
 
         return rating
 
@@ -65,6 +96,8 @@ class SessionStats:
         """A beat passed with no player input."""
         self.missed_beats += 1
         self.streak = 0
+        self.combo = 0
+        self.combo_multiplier = 1.0
 
     @property
     def accuracy_pct(self) -> float:

@@ -43,6 +43,42 @@ class Timeline:
         """Trigger a hit flash on a specific marker."""
         self.marker_flashes[(layer, beat_idx)] = (time.perf_counter(), color)
 
+    def _draw_marker(self, x: int, ry: int, li: int, bi: int, phase: float,
+                     color: tuple, dim: tuple, cycle_phase: float, now: float,
+                     is_ghost: bool = False):
+        """Draw a single beat marker (or ghost) at position x."""
+        is_accent = (bi == 0)
+        draw_size = 10 if is_accent else 7
+
+        # Ghost markers are smaller and dimmer
+        if is_ghost:
+            draw_size = max(4, draw_size - 3)
+            ghost_dim = tuple(c // 3 for c in color[:3])
+            pygame.draw.circle(self.surface, ghost_dim, (x, ry), draw_size)
+            return
+
+        # Check hit flash
+        marker_key = (li, bi)
+        flash_t = 0.0
+        flash_color = color
+        if marker_key in self.marker_flashes:
+            ft, fc = self.marker_flashes[marker_key]
+            age = now - ft
+            if age < 0.3:
+                flash_t = 1.0 - age / 0.3
+                flash_color = fc
+            else:
+                del self.marker_flashes[marker_key]
+
+        if flash_t > 0:
+            draw_size += int(6 * flash_t)
+            glow_r = draw_size + 8
+            glow_color = tuple(int(c * flash_t * 0.4) for c in flash_color[:3])
+            pygame.draw.circle(self.surface, glow_color, (x, ry), glow_r)
+
+        mc = flash_color if flash_t > 0.3 else (color if is_accent else dim)
+        pygame.draw.circle(self.surface, mc, (x, ry), draw_size)
+
     def draw(self, layers: list[dict], cycle_phase: float):
         """Draw the full timeline."""
         if not layers:
@@ -75,33 +111,22 @@ class Timeline:
                 self.surface.blit(label_surf,
                                   (4, ry - label_surf.get_height() // 2))
 
-            # Beat markers
+            # Beat markers — including ghost markers from next cycle for lookahead
+            track_w = self.width - 2 * margin
             for bi, phase in enumerate(phases):
-                x = margin + int(phase * (self.width - 2 * margin))
-                is_accent = (bi == 0)
-                draw_size = 10 if is_accent else 7
+                # Draw the actual marker
+                x = margin + int(phase * track_w)
+                self._draw_marker(x, ry, li, bi, phase, color, dim,
+                                  cycle_phase, now, is_ghost=False)
 
-                # Check hit flash
-                marker_key = (li, bi)
-                flash_t = 0.0
-                flash_color = color
-                if marker_key in self.marker_flashes:
-                    ft, fc = self.marker_flashes[marker_key]
-                    age = now - ft
-                    if age < 0.3:
-                        flash_t = 1.0 - age / 0.3
-                        flash_color = fc
-                    else:
-                        del self.marker_flashes[marker_key]
-
-                if flash_t > 0:
-                    draw_size += int(6 * flash_t)
-                    glow_r = draw_size + 8
-                    glow_color = tuple(int(c * flash_t * 0.4) for c in flash_color[:3])
-                    pygame.draw.circle(self.surface, glow_color, (x, ry), glow_r)
-
-                mc = flash_color if flash_t > 0.3 else (color if is_accent else dim)
-                pygame.draw.circle(self.surface, mc, (x, ry), draw_size)
+                # Ghost marker: wrap early beats to the right side
+                # If this beat is near the start (phase < 0.15), draw a ghost
+                # on the right representing its next-cycle occurrence
+                if phase < 0.15:
+                    ghost_x = margin + int((1.0 + phase) * track_w)
+                    if ghost_x <= self.width - margin + 30:
+                        self._draw_marker(ghost_x, ry, li, bi, phase, color, dim,
+                                          cycle_phase, now, is_ghost=True)
 
             # Playhead
             px = margin + int(cycle_phase * (self.width - 2 * margin))

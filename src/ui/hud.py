@@ -57,7 +57,7 @@ class HUD:
 
         # Background panel
         panel_w = 260
-        panel_h = 220
+        panel_h = 260
         panel = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
         panel.fill(HUD_BG)
         self.surface.blit(panel, (margin, margin))
@@ -92,6 +92,17 @@ class HUD:
                         x, y, self.font_small, TEXT_COLOR)
         y += 22
 
+        # Score and combo
+        self._draw_text(f"Score: {stats.score}", x, y, self.font_small, CYAN)
+        y += 22
+
+        combo_color = COLOR_PERFECT if stats.combo >= 20 else (
+            COLOR_GOOD if stats.combo >= 10 else TEXT_COLOR)
+        if stats.combo > 0:
+            self._draw_text(f"Combo: {stats.combo}  x{stats.combo_multiplier:.1f}",
+                            x, y, self.font_small, combo_color)
+        y += 22
+
         # Hit breakdown
         self._draw_text(
             f"P:{stats.ratings[HitRating.PERFECT]}  "
@@ -100,9 +111,6 @@ class HUD:
             f"M:{stats.ratings[HitRating.MISS]}",
             x, y, self.font_tiny, TEXT_DIM
         )
-        y += 18
-        self._draw_text(f"Missed beats: {stats.missed_beats}", x, y,
-                        self.font_tiny, TEXT_DIM)
 
         # Controls hint at bottom-right
         hints = [
