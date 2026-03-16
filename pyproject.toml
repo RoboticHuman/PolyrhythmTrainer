@@ -11,3 +11,14 @@ dependencies = [
 
 [project.scripts]
 polyrythm = "src.main:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "realtime: slow tests that run metronome in real time (use -m realtime to include)",
+]
+addopts = "-m 'not realtime'"

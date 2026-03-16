@@ -4,7 +4,8 @@ import pygame
 from src.engine.scoring import SessionStats, HitRating
 from src.visuals.colors import (
     TEXT_COLOR, TEXT_DIM, HUD_BG,
-    COLOR_PERFECT, COLOR_GOOD, COLOR_OK, COLOR_MISS, CYAN, MAGENTA
+    COLOR_PERFECT, COLOR_GOOD, COLOR_OK, COLOR_MISS, CYAN, MAGENTA,
+    rating_color
 )
 
 
@@ -39,12 +40,7 @@ class HUD:
         self._rating_display_time = current_time
 
     def _rating_color(self, rating: str) -> tuple:
-        return {
-            HitRating.PERFECT: COLOR_PERFECT,
-            HitRating.GOOD: COLOR_GOOD,
-            HitRating.OK: COLOR_OK,
-            HitRating.MISS: COLOR_MISS,
-        }.get(rating, TEXT_DIM)
+        return rating_color(rating)
 
     def render(self, stats: SessionStats, bpm: float, rhythm_desc: str,
                current_time: float, visual_mode: str):

@@ -1,7 +1,7 @@
 """Base class for visual renderers."""
 
 import pygame
-from src.engine.scoring import HitRating
+from src.visuals.colors import rating_color
 
 
 class BaseVisualizer:
@@ -20,13 +20,7 @@ class BaseVisualizer:
         self.cycle_phase: float = 0.0  # 0.0 to 1.0
         self.bpm: float = 120.0
         self.layers: list[dict] = []  # [{beats, phases, color, name}, ...]
-        self.active_layer: int = 0  # Which layer the player is hitting
-
-        # Recent hit events for visual feedback
-        self.hit_events: list[dict] = []  # [{time, layer, rating, deviation}, ...]
-
-        # Beat events from metronome (for flash/pulse)
-        self.beat_events: list[dict] = []  # [{time, layer, beat_idx}, ...]
+        self.dt: float = 0.0
 
     def update_state(self, cycle_phase: float, bpm: float, layers: list[dict],
                      hit_events: list[dict], beat_events: list[dict], dt: float):
@@ -34,8 +28,6 @@ class BaseVisualizer:
         self.cycle_phase = cycle_phase
         self.bpm = bpm
         self.layers = layers
-        self.hit_events = hit_events
-        self.beat_events = beat_events
         self.dt = dt
 
     def render(self):
@@ -51,11 +43,14 @@ class BaseVisualizer:
         pass
 
     @staticmethod
-    def rating_to_alpha(rating: str) -> int:
-        """Convert rating to glow intensity."""
-        return {
-            HitRating.PERFECT: 255,
-            HitRating.GOOD: 200,
-            HitRating.OK: 140,
-            HitRating.MISS: 80,
-        }.get(rating, 60)
+    def _find_nearest_beat(phases: list[float], cycle_phase: float) -> int:
+        """Find the index of the nearest beat marker to the current phase."""
+        best_bi = 0
+        best_dist = 1.0
+        for bi, phase in enumerate(phases):
+            dist = abs(cycle_phase - phase)
+            dist = min(dist, 1.0 - dist)
+            if dist < best_dist:
+                best_dist = dist
+                best_bi = bi
+        return best_bi

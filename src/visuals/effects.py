@@ -82,12 +82,9 @@ class Particle:
 
     def draw(self, surface: pygame.Surface):
         t = max(0, self.life / self.max_life)
-        alpha = int(255 * t)
         r = max(1, int(self.size * t))
-        color = (*self.color[:3], alpha)
-        s = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
-        pygame.draw.circle(s, color, (r, r), r)
-        surface.blit(s, (int(self.x) - r, int(self.y) - r))
+        color = tuple(int(c * t) for c in self.color[:3])
+        pygame.draw.circle(surface, color, (int(self.x), int(self.y)), r)
 
 
 class ParticleSystem:

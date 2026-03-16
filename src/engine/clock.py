@@ -32,6 +32,10 @@ class Clock:
         self._pause_elapsed = 0.0
         self._running = True
 
+    def restart(self):
+        """Restart the clock from now, preserving settings."""
+        self.start()
+
     def stop(self):
         self._running = False
 

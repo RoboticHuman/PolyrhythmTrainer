@@ -1,6 +1,5 @@
 """Polyrhythm Trainer — main entry point and game loop."""
 
-import sys
 import time
 import pygame
 
@@ -92,14 +91,11 @@ class App:
         else:
             print("MIDI: No devices found (keyboard input active)")
 
-    def _rebuild_session(self):
-        """Rebuild session state after BPM or preset change (while running)."""
+    def _build_schedule(self):
+        """Build metronome schedule and hit detectors from current session."""
         self.session.bpm = self.bpm
         self.clock.bpm = self.bpm
         self.clock.beats_per_cycle = self.session.base_beats
-
-        # Restart metronome with fresh time reference
-        self.metronome.stop()
 
         schedule = []
         for li, layer in enumerate(self.session.layers):
@@ -107,17 +103,32 @@ class App:
                 schedule.append((phase, li, bi))
         self.metronome.set_schedule(schedule, self.session.cycle_duration)
 
+        self.hit_detectors = [
+            HitDetector(self.session.cycle_duration, layer.beat_phases)
+            for layer in self.session.layers
+        ]
+
+        # Cache layer data for visualizers
+        self._cached_layer_data = [
+            {
+                "beats": layer.beats,
+                "phases": layer.beat_phases,
+                "color": LAYER_COLORS[i % len(LAYER_COLORS)],
+                "name": layer.name,
+            }
+            for i, layer in enumerate(self.session.layers)
+        ]
+
+    def _rebuild_session(self):
+        """Rebuild session state after BPM or preset change (while running)."""
+        self.metronome.stop()
+        self._build_schedule()
+
         now = time.perf_counter()
         self._session_start = now
-        self.clock._start_time = now
+        self.clock.restart()
         self.stats.reset()
         self.metronome.start(now)
-
-        # Rebuild hit detectors
-        self.hit_detectors = []
-        for layer in self.session.layers:
-            detector = HitDetector(self.session.cycle_duration, layer.beat_phases)
-            self.hit_detectors.append(detector)
 
     def _start_session(self):
         """Start/restart the practice session."""
@@ -125,7 +136,6 @@ class App:
         self._beat_events.clear()
         self._hit_events.clear()
 
-        # Set callback before building session (rebuild starts the metronome)
         def on_beat(layer_idx, beat_idx, t):
             self._beat_events.append({
                 "time": t, "layer": layer_idx, "beat_idx": beat_idx
@@ -134,24 +144,8 @@ class App:
             viz.on_beat(layer_idx, beat_idx)
 
         self.metronome.on_beat = on_beat
+        self._build_schedule()
 
-        # Build schedule and hit detectors (does NOT start metronome)
-        self.session.bpm = self.bpm
-        self.clock.bpm = self.bpm
-        self.clock.beats_per_cycle = self.session.base_beats
-
-        schedule = []
-        for li, layer in enumerate(self.session.layers):
-            for bi, phase in enumerate(layer.beat_phases):
-                schedule.append((phase, li, bi))
-        self.metronome.set_schedule(schedule, self.session.cycle_duration)
-
-        self.hit_detectors = []
-        for layer in self.session.layers:
-            detector = HitDetector(self.session.cycle_duration, layer.beat_phases)
-            self.hit_detectors.append(detector)
-
-        # Start everything from now
         self._session_start = time.perf_counter()
         self.clock.start()
         self.metronome.start(self._session_start)
@@ -222,17 +216,9 @@ class App:
                         self._load_preset(preset_idx)
                         self._start_session()
 
-    def _build_layer_data(self) -> list[dict]:
-        """Build layer data dicts for the visualizer."""
-        data = []
-        for i, layer in enumerate(self.session.layers):
-            data.append({
-                "beats": layer.beats,
-                "phases": layer.beat_phases,
-                "color": LAYER_COLORS[i % len(LAYER_COLORS)],
-                "name": layer.name,
-            })
-        return data
+    def _get_layer_data(self) -> list[dict]:
+        """Return cached layer data for visualizers."""
+        return self._cached_layer_data
 
     def run(self):
         """Main game loop."""
@@ -261,7 +247,7 @@ class App:
             viz.update_state(
                 cycle_phase=cycle_phase,
                 bpm=self.bpm,
-                layers=self._build_layer_data(),
+                layers=self._get_layer_data(),
                 hit_events=self._hit_events[-20:],
                 beat_events=self._beat_events[-20:],
                 dt=dt,

@@ -44,3 +44,16 @@ BLOOM_SCALE = 4  # Downscale factor for bloom effect
 # Grid
 GRID_COLOR = (40, 20, 60)
 GRID_BRIGHT = (80, 40, 120)
+
+# Shared rating -> color lookup
+RATING_COLORS = {
+    "perfect": COLOR_PERFECT,
+    "good": COLOR_GOOD,
+    "ok": COLOR_OK,
+    "miss": COLOR_MISS,
+}
+
+
+def rating_color(rating: str) -> tuple:
+    """Map a hit rating string to its neon color."""
+    return RATING_COLORS.get(rating, COLOR_MISS)
