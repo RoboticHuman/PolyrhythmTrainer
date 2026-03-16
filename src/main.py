@@ -18,7 +18,9 @@ from src.audio.metronome import Metronome
 from src.visuals.orbits import OrbitsVisualizer
 from src.visuals.gameoflife import GameOfLifeVisualizer
 from src.visuals.automata import AutomataVisualizer
+from src.visuals.boxing import BoxingVisualizer
 from src.visuals.colors import LAYER_COLORS, BG_DARK
+from src.visuals.effects import CRTFilter
 from src.ui.hud import HUD
 
 
@@ -54,7 +56,11 @@ class App:
             OrbitsVisualizer(self.screen),
             GameOfLifeVisualizer(self.screen),
             AutomataVisualizer(self.screen),
+            BoxingVisualizer(self.screen),
         ]
+
+        # CRT post-processing filter (toggle with C key)
+        self.crt = CRTFilter(SCREEN_WIDTH, SCREEN_HEIGHT)
 
         # Hit detectors per layer
         self.hit_detectors: list[HitDetector] = []
@@ -199,6 +205,8 @@ class App:
                     self.hud.toggle()
                 elif event.key == pygame.K_v:
                     self.visual_mode_idx = (self.visual_mode_idx + 1) % len(self.visualizers)
+                elif event.key == pygame.K_c:
+                    self.crt.enabled = not self.crt.enabled
                 elif event.key == pygame.K_EQUALS or event.key == pygame.K_PLUS:
                     self.bpm = min(MAX_BPM, self.bpm + 5)
                     self._rebuild_session()
@@ -264,6 +272,9 @@ class App:
                 current_time=time.perf_counter(),
                 visual_mode=VISUAL_MODES[self.visual_mode_idx],
             )
+
+            # CRT post-processing (toggle with C)
+            self.crt.apply(self.screen)
 
             pygame.display.flip()
 

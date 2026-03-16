@@ -108,6 +108,7 @@ class HUD:
         hints = [
             "Tab: Toggle stats",
             "V: Cycle visuals",
+            "C: CRT filter",
             "+/-: BPM",
             "1-9: Presets",
             "Esc: Quit",

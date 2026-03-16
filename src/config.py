@@ -32,7 +32,7 @@ KEYBOARD_LAYER_KEYS = {
 }
 
 # Visual modes
-VISUAL_MODES = ["orbits", "gameoflife", "automata"]
+VISUAL_MODES = ["orbits", "gameoflife", "automata", "boxing"]
 
 # Polyrhythm presets: (name, layers as list of beat counts, base_beats)
 # e.g. ("3:4", [3, 4], 4) means 3 against 4, with 4 as the base

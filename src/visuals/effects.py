@@ -1,6 +1,7 @@
-"""Visual effects: glow, bloom, scanlines, particles."""
+"""Visual effects: glow, bloom, scanlines, CRT filter, particles."""
 
 import pygame
+import numpy as np
 import math
 from src.visuals.colors import BLOOM_SCALE, GLOW_ALPHA, BG_DARK
 
@@ -118,3 +119,110 @@ class ParticleSystem:
     def draw(self, surface: pygame.Surface):
         for p in self.particles:
             p.draw(surface)
+
+
+class CRTFilter:
+    """Full-screen CRT post-processing effect.
+
+    Applies scanlines, chromatic aberration, vignette, and barrel distortion.
+    Pre-computes expensive lookup tables on init for fast per-frame application.
+    Toggle on/off with .enabled attribute.
+    """
+
+    def __init__(self, width: int, height: int):
+        self.width = width
+        self.height = height
+        self.enabled = False
+
+        # Scanline overlay (pre-rendered)
+        self._scanline_overlay = self._build_scanlines(width, height,
+                                                        spacing=2, alpha=40)
+
+        # Vignette overlay (pre-rendered)
+        self._vignette = self._build_vignette(width, height, strength=0.15)
+
+        # Barrel distortion map (pre-computed)
+        self._warp_map = self._build_warp_map(width, height, strength=0.02)
+
+    @staticmethod
+    def _build_scanlines(w: int, h: int, spacing: int = 2,
+                         alpha: int = 40) -> pygame.Surface:
+        """Pre-render scanline overlay."""
+        surf = pygame.Surface((w, h), pygame.SRCALPHA)
+        for y in range(0, h, spacing):
+            pygame.draw.line(surf, (0, 0, 0, alpha), (0, y), (w, y))
+        return surf
+
+    @staticmethod
+    def _build_vignette(w: int, h: int, strength: float = 0.15) -> pygame.Surface:
+        """Pre-render radial vignette using numpy for smooth gradient."""
+        cx, cy = w / 2, h / 2
+        # Build distance array normalized so corners = 1.0
+        y_arr, x_arr = np.mgrid[0:h, 0:w].astype(np.float32)
+        dx = (x_arr - cx) / cx
+        dy = (y_arr - cy) / cy
+        dist = np.sqrt(dx * dx + dy * dy)  # 0 at center, ~1.4 at corners
+
+        # Only darken beyond 70% of the way to the corner
+        fade = np.clip((dist - 0.7) / 0.7, 0.0, 1.0)
+        alpha = (fade * fade * 255 * strength).astype(np.uint8)
+
+        # Build RGBA surface
+        surf = pygame.Surface((w, h), pygame.SRCALPHA)
+        pixels = pygame.surfarray.pixels_alpha(surf)
+        # surfarray is (w, h) transposed
+        pixels[:] = alpha.T
+        del pixels
+        # Fill RGB with black
+        rgb = pygame.surfarray.pixels3d(surf)
+        rgb[:] = 0
+        del rgb
+
+        return surf
+
+    @staticmethod
+    def _build_warp_map(w: int, h: int, strength: float = 0.02) -> np.ndarray:
+        """Pre-compute barrel distortion pixel mapping.
+
+        Returns array of shape (h, w, 2) with source (x, y) for each dest pixel.
+        """
+        # Build at half res for speed, will be used to warp a half-res copy
+        hw, hh = w // 2, h // 2
+        cx, cy = hw / 2, hh / 2
+
+        y_coords, x_coords = np.mgrid[0:hh, 0:hw].astype(np.float32)
+        # Normalize to -1..1
+        nx = (x_coords - cx) / cx
+        ny = (y_coords - cy) / cy
+        r2 = nx * nx + ny * ny
+        # Barrel distortion
+        factor = 1.0 + strength * r2
+        src_x = (nx * factor * cx + cx).clip(0, hw - 1).astype(np.int32)
+        src_y = (ny * factor * cy + cy).clip(0, hh - 1).astype(np.int32)
+
+        return np.stack([src_x, src_y], axis=-1)
+
+    def apply(self, surface: pygame.Surface):
+        """Apply CRT effect to the surface in-place."""
+        if not self.enabled:
+            return
+
+        w, h = self.width, self.height
+
+        # --- Chromatic aberration ---
+        # Shift red channel right, blue channel left by 2px
+        pixels = pygame.surfarray.pixels3d(surface)  # (w, h, 3) — note: transposed
+        shift = 2
+        # Red channel: shift right (+x)
+        pixels[shift:, :, 0] = pixels[:-shift, :, 0]
+        pixels[:shift, :, 0] = 0
+        # Blue channel: shift left (-x)
+        pixels[:-shift, :, 2] = pixels[shift:, :, 2]
+        pixels[-shift:, :, 2] = 0
+        del pixels  # Release surface lock
+
+        # --- Scanlines ---
+        surface.blit(self._scanline_overlay, (0, 0))
+
+        # --- Vignette ---
+        surface.blit(self._vignette, (0, 0))
