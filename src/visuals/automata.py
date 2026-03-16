@@ -13,6 +13,7 @@ from src.visuals.colors import (
     BG_DARK, LAYER_COLORS, CYAN, PURPLE, rating_color
 )
 from src.visuals.effects import bloom_pass, ParticleSystem
+from src.visuals.timeline import Timeline
 from src.engine.scoring import HitRating
 
 
@@ -42,11 +43,7 @@ class AutomataVisualizer(BaseVisualizer):
         self._last_hit_rating = ""
         self._last_hit_color = CYAN
 
-        self._marker_flashes: dict[tuple[int, int], tuple[float, tuple]] = {}
-
-        # Cached timeline background
-        self._timeline_strip = pygame.Surface((self.width, self.timeline_h), pygame.SRCALPHA)
-        self._timeline_strip.fill((12, 8, 20, 200))
+        self.timeline = Timeline(self.surface, self.timeline_h)
 
     def _seed_row(self):
         row = [0] * self.cols
@@ -98,11 +95,11 @@ class AutomataVisualizer(BaseVisualizer):
         if layer < len(self.layers):
             phases = self.layers[layer]["phases"]
             best_bi = self._find_nearest_beat(phases, self.cycle_phase)
-            self._marker_flashes[(layer, best_bi)] = (time.perf_counter(), self._last_hit_color)
+            self.timeline.flash_marker(layer, best_bi, self._last_hit_color)
 
             margin = 40
             mx = margin + int(phases[best_bi] * (self.width - 2 * margin))
-            my = self._timeline_row_y(layer)
+            my = self.timeline.row_y(layer, len(self.layers))
             self.particles.emit(mx, my, self._last_hit_color, count=10, speed=120, life=0.5)
 
     def on_beat(self, layer: int, beat_idx: int):
@@ -111,13 +108,6 @@ class AutomataVisualizer(BaseVisualizer):
             color = rating_color(self._last_hit_rating)
             self._last_hit_rating = ""
         self._advance(color)
-
-    def _timeline_row_y(self, layer_idx: int) -> int:
-        tl_top = self.grid_h
-        total = len(self.layers)
-        if total <= 1:
-            return tl_top + self.timeline_h // 2
-        return tl_top + 15 + layer_idx * (self.timeline_h - 30) // max(1, total - 1)
 
     def _draw_automata(self):
         n_rows = len(self.rows)
@@ -140,61 +130,7 @@ class AutomataVisualizer(BaseVisualizer):
                                      (x, y, self.cell_size - 1, self.cell_size - 1))
 
     def _draw_timeline(self):
-        if not self.layers:
-            return
-
-        now = time.perf_counter()
-        tl_top = self.grid_h
-        margin = 40
-
-        self.surface.blit(self._timeline_strip, (0, tl_top))
-        pygame.draw.line(self.surface, (40, 20, 60), (0, tl_top), (self.width, tl_top), 1)
-
-        for li, layer_data in enumerate(self.layers):
-            phases = layer_data["phases"]
-            color = layer_data.get("color", LAYER_COLORS[li % len(LAYER_COLORS)])
-            row_y = self._timeline_row_y(li)
-            dim = tuple(c // 4 for c in color[:3])
-
-            pygame.draw.line(self.surface, dim, (margin, row_y), (self.width - margin, row_y), 2)
-
-            for bi, phase in enumerate(phases):
-                x = margin + int(phase * (self.width - 2 * margin))
-                is_accent = (bi == 0)
-                draw_size = 10 if is_accent else 7
-
-                marker_key = (li, bi)
-                flash_t = 0.0
-                flash_color = color
-                if marker_key in self._marker_flashes:
-                    ft, fc = self._marker_flashes[marker_key]
-                    age = now - ft
-                    if age < 0.3:
-                        flash_t = 1.0 - age / 0.3
-                        flash_color = fc
-                    else:
-                        del self._marker_flashes[marker_key]
-
-                if flash_t > 0:
-                    draw_size += int(6 * flash_t)
-                    glow_r = draw_size + 14
-                    glow_alpha = int(80 * flash_t)
-                    gs = pygame.Surface((glow_r * 2 + 4, glow_r * 2 + 4), pygame.SRCALPHA)
-                    pygame.draw.circle(gs, (*flash_color[:3], glow_alpha),
-                                       (glow_r + 2, glow_r + 2), glow_r)
-                    self.surface.blit(gs, (x - glow_r - 2, row_y - glow_r - 2),
-                                      special_flags=pygame.BLEND_RGB_ADD)
-
-                mc = flash_color if flash_t > 0.3 else (color if is_accent else dim)
-                pygame.draw.circle(self.surface, mc, (x, row_y), draw_size)
-
-            px = margin + int(self.cycle_phase * (self.width - 2 * margin))
-            pygame.draw.circle(self.surface, (255, 255, 255), (px, row_y), 6)
-            pygame.draw.circle(self.surface, color, (px, row_y), 3)
-
-        bar_y = self.height - 4
-        bar_w = int((self.width - 2 * margin) * self.cycle_phase)
-        pygame.draw.rect(self.surface, CYAN, (margin, bar_y, bar_w, 4))
+        self.timeline.draw(self.layers, self.cycle_phase)
 
     def render(self):
         self.surface.fill(BG_DARK)

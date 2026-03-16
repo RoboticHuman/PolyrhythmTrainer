@@ -19,6 +19,7 @@ from src.visuals.orbits import OrbitsVisualizer
 from src.visuals.gameoflife import GameOfLifeVisualizer
 from src.visuals.automata import AutomataVisualizer
 from src.visuals.boxing import BoxingVisualizer
+from src.visuals.blacksmith import BlacksmithVisualizer
 from src.visuals.colors import LAYER_COLORS, BG_DARK
 from src.visuals.effects import CRTFilter
 from src.ui.hud import HUD
@@ -57,6 +58,7 @@ class App:
             GameOfLifeVisualizer(self.screen),
             AutomataVisualizer(self.screen),
             BoxingVisualizer(self.screen),
+            BlacksmithVisualizer(self.screen),
         ]
 
         # CRT post-processing filter (toggle with C key)
@@ -216,6 +218,16 @@ class App:
                 elif event.key == pygame.K_r:
                     self._stop_session()
                     self._start_session()
+                elif event.key == pygame.K_LEFTBRACKET:
+                    self.current_preset_idx = (self.current_preset_idx - 1) % len(PRESETS)
+                    self._stop_session()
+                    self._load_preset(self.current_preset_idx)
+                    self._start_session()
+                elif event.key == pygame.K_RIGHTBRACKET:
+                    self.current_preset_idx = (self.current_preset_idx + 1) % len(PRESETS)
+                    self._stop_session()
+                    self._load_preset(self.current_preset_idx)
+                    self._start_session()
                 elif pygame.K_1 <= event.key <= pygame.K_9:
                     preset_idx = event.key - pygame.K_1
                     if preset_idx < len(PRESETS):
@@ -291,7 +303,9 @@ class App:
 def main():
     print("=== Polyrhythm Trainer ===")
     print("Controls:")
-    print("  Space/F/J  — Hit rhythm layers 0/1/2")
+    print("  D/F        — Layer 0 (left hand)")
+    print("  J/K        — Layer 1 (right hand)")
+    print("  Space      — Layer 2 (3-layer presets)")
     print("  Tab        — Toggle stats HUD")
     print("  V          — Cycle visual mode")
     print("  +/-        — Adjust BPM")

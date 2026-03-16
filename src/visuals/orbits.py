@@ -10,8 +10,9 @@ import time
 import pygame
 from src.visuals.base import BaseVisualizer
 from src.visuals.colors import (
-    BG_DARK, LAYER_COLORS, GRID_COLOR, rating_color
+    BG_DARK, LAYER_COLORS, GRID_COLOR, TEXT_DIM, rating_color
 )
+from src.config import LAYER_KEY_LABELS
 from src.visuals.effects import draw_aa_circle, bloom_pass, ParticleSystem
 
 
@@ -132,12 +133,14 @@ class OrbitsVisualizer(BaseVisualizer):
             draw_aa_circle(self.surface, color, (ox, oy), 8)
             draw_aa_circle(self.surface, (255, 255, 255), (ox, oy), 4)
 
-            # Layer label
+            # Layer label with key hint
             if total_layers > 1:
                 label_angle = phases[0] * math.pi * 2 - math.pi / 2
-                lx = int(self.cx + (r + 20) * math.cos(label_angle))
-                ly = int(self.cy + (r + 20) * math.sin(label_angle))
-                label_surf = self._label_font.render(str(beats), True, color)
+                lx = int(self.cx + (r + 22) * math.cos(label_angle))
+                ly = int(self.cy + (r + 22) * math.sin(label_angle))
+                key_label = LAYER_KEY_LABELS.get(li, "")
+                label_text = f"{beats} [{key_label}]" if key_label else str(beats)
+                label_surf = self._label_font.render(label_text, True, color)
                 self.surface.blit(label_surf,
                                   (lx - label_surf.get_width() // 2,
                                    ly - label_surf.get_height() // 2))

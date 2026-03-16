@@ -106,11 +106,13 @@ class HUD:
 
         # Controls hint at bottom-right
         hints = [
+            "D/F: Layer 0 (L hand)",
+            "J/K: Layer 1 (R hand)",
+            "Space: Layer 2",
             "Tab: Toggle stats",
             "V: Cycle visuals",
             "C: CRT filter",
-            "+/-: BPM",
-            "1-9: Presets",
+            "+/-: BPM  [/]: Presets",
             "Esc: Quit",
         ]
         hy = self.surface.get_height() - margin - len(hints) * 16

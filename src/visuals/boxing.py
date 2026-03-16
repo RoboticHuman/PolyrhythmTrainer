@@ -11,10 +11,11 @@ import time
 import pygame
 from src.visuals.base import BaseVisualizer
 from src.visuals.colors import (
-    BG_DARK, LAYER_COLORS, CYAN, MAGENTA, NEON_GREEN, HOT_PINK,
+    BG_DARK, CYAN, MAGENTA, NEON_GREEN, HOT_PINK,
     YELLOW, ORANGE, PURPLE, rating_color
 )
 from src.visuals.effects import bloom_pass, ParticleSystem
+from src.visuals.timeline import Timeline
 from src.engine.scoring import HitRating
 
 
@@ -365,9 +366,7 @@ class BoxingVisualizer(BaseVisualizer):
         self._opponent_idx = 0
 
         # Timeline
-        self._marker_flashes: dict[tuple[int, int], tuple[float, tuple]] = {}
-        self._timeline_strip = pygame.Surface((self.width, self.timeline_h), pygame.SRCALPHA)
-        self._timeline_strip.fill((12, 8, 20, 200))
+        self.timeline = Timeline(self.surface, self.timeline_h)
 
         # Impact flash
         self._impact_time = 0.0
@@ -444,10 +443,10 @@ class BoxingVisualizer(BaseVisualizer):
         if layer < len(self.layers):
             phases = self.layers[layer]["phases"]
             best_bi = self._find_nearest_beat(phases, self.cycle_phase)
-            self._marker_flashes[(layer, best_bi)] = (time.perf_counter(), color)
+            self.timeline.flash_marker(layer, best_bi, color)
             margin = 40
             mx = margin + int(phases[best_bi] * (self.width - 2 * margin))
-            my = self._timeline_row_y(layer)
+            my = self.timeline.row_y(layer, len(self.layers))
             self.particles.emit(mx, my, color, count=10, speed=120, life=0.5)
 
     def on_beat(self, layer: int, beat_idx: int):
@@ -471,13 +470,6 @@ class BoxingVisualizer(BaseVisualizer):
                     self.particles.emit(ix, iy, GLOVE_R, count=6, speed=100, life=0.2, size=3)
                     self.referee.lean_x = -20  # Lean toward player
                     self.coach_r.set_arm_raise(0.4)  # Opponent's coach encourages
-
-    def _timeline_row_y(self, layer_idx: int) -> int:
-        tl_top = self.ring_h
-        total = len(self.layers)
-        if total <= 1:
-            return tl_top + self.timeline_h // 2
-        return tl_top + 15 + layer_idx * (self.timeline_h - 30) // max(1, total - 1)
 
     def _draw_crowd(self, beat_phase: float):
         for member in self.crowd:
@@ -557,58 +549,7 @@ class BoxingVisualizer(BaseVisualizer):
                                      self.ring_bottom - 5))
 
     def _draw_timeline(self):
-        if not self.layers:
-            return
-
-        now = time.perf_counter()
-        tl_top = self.ring_h
-        margin = 40
-
-        self.surface.blit(self._timeline_strip, (0, tl_top))
-        pygame.draw.line(self.surface, (40, 20, 60), (0, tl_top), (self.width, tl_top), 1)
-
-        for li, layer_data in enumerate(self.layers):
-            phases = layer_data["phases"]
-            color = layer_data.get("color", LAYER_COLORS[li % len(LAYER_COLORS)])
-            row_y = self._timeline_row_y(li)
-            dim = tuple(c // 4 for c in color[:3])
-
-            pygame.draw.line(self.surface, dim, (margin, row_y), (self.width - margin, row_y), 2)
-
-            for bi, phase in enumerate(phases):
-                x = margin + int(phase * (self.width - 2 * margin))
-                is_accent = (bi == 0)
-                draw_size = 10 if is_accent else 7
-
-                marker_key = (li, bi)
-                flash_t = 0.0
-                flash_color = color
-                if marker_key in self._marker_flashes:
-                    ft, fc = self._marker_flashes[marker_key]
-                    age = now - ft
-                    if age < 0.3:
-                        flash_t = 1.0 - age / 0.3
-                        flash_color = fc
-                    else:
-                        del self._marker_flashes[marker_key]
-
-                if flash_t > 0:
-                    draw_size += int(6 * flash_t)
-                    # Draw glow as a larger dim circle directly
-                    glow_r = draw_size + 8
-                    glow_color = tuple(int(c * flash_t * 0.4) for c in flash_color[:3])
-                    pygame.draw.circle(self.surface, glow_color, (x, row_y), glow_r)
-
-                mc = flash_color if flash_t > 0.3 else (color if is_accent else dim)
-                pygame.draw.circle(self.surface, mc, (x, row_y), draw_size)
-
-            px = margin + int(self.cycle_phase * (self.width - 2 * margin))
-            pygame.draw.circle(self.surface, (255, 255, 255), (px, row_y), 6)
-            pygame.draw.circle(self.surface, color, (px, row_y), 3)
-
-        bar_y = self.height - 4
-        bar_w = int((self.width - 2 * margin) * self.cycle_phase)
-        pygame.draw.rect(self.surface, CYAN, (margin, bar_y, bar_w, 4))
+        self.timeline.draw(self.layers, self.cycle_phase)
 
     def render(self):
         self.surface.fill((10, 5, 18))
