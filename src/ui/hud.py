@@ -122,7 +122,9 @@ class HUD:
             "Tab: Toggle stats",
             "V: Cycle visuals",
             "C: CRT filter",
-            "+/-: BPM  [/]: Presets",
+            "H: Hit sounds",
+            "+/-: BPM",
+            "[/]: Presets",
             "Esc: Quit",
         ]
         hy = self.surface.get_height() - margin - len(hints) * 16

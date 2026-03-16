@@ -21,11 +21,22 @@ def _generate_tone(freq: float, duration_ms: int, volume: float,
 
 
 class HitSounds:
-    """Pre-generated audio feedback sounds for hit ratings."""
+    """Pre-generated audio feedback sounds for hit ratings.
+
+    Two modes:
+      - granular: distinct sound per rating (chime/tap/buzz)
+      - uniform: same clean click for any hit
+    Toggle with .toggle_mode()
+    """
+
+    MODE_GRANULAR = "granular"
+    MODE_UNIFORM = "uniform"
 
     def __init__(self):
-        # Perfect: bright two-tone chime
-        self._sounds = {
+        self.mode = self.MODE_GRANULAR
+
+        # Granular: 4 distinct sounds per rating
+        self._granular = {
             HitRating.PERFECT: _generate_tone(
                 2000, 60, 0.35, decay=25,
                 harmonics=[(3000, 0.15), (4000, 0.08)]
@@ -43,7 +54,22 @@ class HitSounds:
             ),
         }
 
+        # Uniform: one clean click for any hit
+        self._uniform_sound = _generate_tone(
+            1000, 35, 0.35, decay=35,
+            harmonics=[(1500, 0.08)]
+        )
+
+    def toggle_mode(self):
+        if self.mode == self.MODE_GRANULAR:
+            self.mode = self.MODE_UNIFORM
+        else:
+            self.mode = self.MODE_GRANULAR
+
     def play(self, rating: str):
-        sound = self._sounds.get(rating)
-        if sound:
-            sound.play()
+        if self.mode == self.MODE_UNIFORM:
+            self._uniform_sound.play()
+        else:
+            sound = self._granular.get(rating)
+            if sound:
+                sound.play()

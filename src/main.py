@@ -75,6 +75,7 @@ class App:
             BlacksmithVisualizer(self.screen),
         ]
         self.crt = CRTFilter(SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.crt.enabled = True
 
         # UI screens
         self.hud = HUD(self.screen)
@@ -300,6 +301,8 @@ class App:
                     self.visual_mode_idx = (self.visual_mode_idx + 1) % len(self.visualizers)
                 elif event.key == pygame.K_c:
                     self.crt.enabled = not self.crt.enabled
+                elif event.key == pygame.K_h:
+                    self.hit_sounds.toggle_mode()
                 elif event.key == pygame.K_EQUALS or event.key == pygame.K_PLUS:
                     if self.game_mode == "freeplay":
                         self.bpm = min(MAX_BPM, self.bpm + 5)
