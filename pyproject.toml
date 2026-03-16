@@ -1,0 +1,13 @@
+[project]
+name = "polyrythm"
+version = "0.1.0"
+description = "Polyrhythm and time signature training tool with neon visuals"
+requires-python = ">=3.14"
+dependencies = [
+    "mido>=1.3.3",
+    "numpy>=2.4.3",
+    "pygame-ce>=2.5.7",
+]
+
+[project.scripts]
+polyrythm = "src.main:main"
