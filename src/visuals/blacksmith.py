@@ -118,6 +118,9 @@ class BlacksmithVisualizer(BaseVisualizer):
         self._next_customer_beat = 8  # spawn a customer every N beats
         self._beat_count = 0
 
+        # Reusable surface for door light shaft (avoids per-frame allocation)
+        self._shaft_surf = pygame.Surface((self.width, self.scene_h), pygame.SRCALPHA)
+
         # Timeline
         self.timeline = Timeline(self.surface, self.timeline_h)
         self.timeline.bar_color = ORANGE
@@ -360,15 +363,15 @@ class BlacksmithVisualizer(BaseVisualizer):
             shaft_reach = int(self.width * 0.35 * self.door_open)
             shaft_alpha = int(25 * self.door_open)
 
-            shaft_surf = pygame.Surface((self.width, self.scene_h), pygame.SRCALPHA)
+            self._shaft_surf.fill((0, 0, 0, 0))
             shaft_pts = [
                 (dx + open_w, dy),
                 (dx + open_w + shaft_reach, dy - 20),
                 (dx + open_w + shaft_reach, self.ground_y + 10),
                 (dx + open_w, dy + dh),
             ]
-            pygame.draw.polygon(shaft_surf, (200, 180, 130, shaft_alpha), shaft_pts)
-            self.surface.blit(shaft_surf, (0, 0))
+            pygame.draw.polygon(self._shaft_surf, (200, 180, 130, shaft_alpha), shaft_pts)
+            self.surface.blit(self._shaft_surf, (0, 0))
 
             # Light edge on the smith if shaft reaches them
             if dx + open_w + shaft_reach > self.smith_x - 30:

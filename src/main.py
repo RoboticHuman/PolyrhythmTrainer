@@ -81,6 +81,10 @@ class App:
         self.menu = MainMenu(self.screen)
         self.results_screen = ResultsScreen(self.screen)
 
+        # Cached fonts for countdown
+        self._countdown_font = pygame.font.SysFont("consolas", 120, bold=True)
+        self._countdown_info_font = pygame.font.SysFont("consolas", 20)
+
         # Hit detectors
         self.hit_detectors: list[HitDetector] = []
         self._beat_events: list[dict] = []
@@ -144,13 +148,11 @@ class App:
         ]
 
     def _rebuild_session(self):
+        """Update BPM/schedule without resetting position or stats."""
         self.metronome.stop()
         self._build_schedule()
-        now = time.perf_counter()
-        self._session_start = now
-        self.clock.restart()
-        self.stats.reset()
-        self.metronome.start(now)
+        # Restart metronome from current time but keep session start and stats
+        self.metronome.start(self._session_start)
 
     def _start_session(self):
         self.stats.reset()
@@ -183,6 +185,13 @@ class App:
         self.metronome.stop()
         self.midi_input.stop()
         self.clock.stop()
+
+    def _change_preset(self, idx: int):
+        """Switch to a different preset (stop, load, restart)."""
+        self.current_preset_idx = idx
+        self._stop_session()
+        self._load_preset(idx)
+        self._start_session()
 
     def _process_hit(self, layer_idx: int, hit_time: float):
         if layer_idx >= len(self.hit_detectors):
@@ -253,7 +262,7 @@ class App:
             if event.type == pygame.QUIT:
                 self.running = False
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE and self.menu.state == "main":
+                if event.key == pygame.K_ESCAPE and self.menu.state == MainMenu.STATE_MAIN:
                     self.running = False
                 else:
                     action = self.menu.handle_event(event)
@@ -304,22 +313,13 @@ class App:
                     self._start_session()
                 elif self.game_mode == "freeplay":
                     if event.key == pygame.K_LEFTBRACKET:
-                        self.current_preset_idx = (self.current_preset_idx - 1) % len(PRESETS)
-                        self._stop_session()
-                        self._load_preset(self.current_preset_idx)
-                        self._start_session()
+                        self._change_preset((self.current_preset_idx - 1) % len(PRESETS))
                     elif event.key == pygame.K_RIGHTBRACKET:
-                        self.current_preset_idx = (self.current_preset_idx + 1) % len(PRESETS)
-                        self._stop_session()
-                        self._load_preset(self.current_preset_idx)
-                        self._start_session()
+                        self._change_preset((self.current_preset_idx + 1) % len(PRESETS))
                     elif pygame.K_1 <= event.key <= pygame.K_9:
                         preset_idx = event.key - pygame.K_1
                         if preset_idx < len(PRESETS):
-                            self.current_preset_idx = preset_idx
-                            self._stop_session()
-                            self._load_preset(preset_idx)
-                            self._start_session()
+                            self._change_preset(preset_idx)
 
     def _handle_results_events(self, events: list[pygame.event.Event]):
         for event in events:
@@ -342,7 +342,6 @@ class App:
         remaining = 3 - int(elapsed)
 
         self.screen.fill(BG_DARK)
-        font = pygame.font.SysFont("consolas", 120, bold=True)
 
         if remaining > 0:
             text = str(remaining)
@@ -352,14 +351,12 @@ class App:
             text = "GO!"
             color = (0, 255, 128)
 
-        surf = font.render(text, True, color)
+        surf = self._countdown_font.render(text, True, color)
         cx = SCREEN_WIDTH // 2 - surf.get_width() // 2
         cy = SCREEN_HEIGHT // 2 - surf.get_height() // 2
         self.screen.blit(surf, (cx, cy))
 
-        # Preset info
-        info_font = pygame.font.SysFont("consolas", 20)
-        info = info_font.render(
+        info = self._countdown_info_font.render(
             f"{self.preset_name}  |  {self.bpm} BPM  |  {self._challenge_duration}s",
             True, (150, 150, 170)
         )

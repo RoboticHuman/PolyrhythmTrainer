@@ -148,7 +148,7 @@ class MainMenu:
         scale = 1.0 + math.sin(t * 2) * 0.02
         tw = int(title.get_width() * scale)
         th = int(title.get_height() * scale)
-        title_scaled = pygame.transform.smoothscale(title, (tw, th))
+        title_scaled = pygame.transform.scale(title, (tw, th))
         self.surface.blit(title_scaled, (cx - tw // 2, y))
         y += 100
 

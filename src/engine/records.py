@@ -20,18 +20,21 @@ def _save_all(data: dict):
         json.dump(data, f, indent=2)
 
 
+def _record_key(preset_name: str, duration: int) -> str:
+    return f"{preset_name}_{duration}s"
+
+
 def get_best(preset_name: str, duration: int) -> dict | None:
     """Get personal best for a preset+duration. Returns dict or None."""
     data = _load_all()
-    key = f"{preset_name}_{duration}s"
-    return data.get(key)
+    return data.get(_record_key(preset_name, duration))
 
 
 def save_if_best(preset_name: str, duration: int, score: int,
                  accuracy: float, grade: str, best_combo: int, bpm_reached: float) -> bool:
     """Save record if it beats the current best. Returns True if new best."""
     data = _load_all()
-    key = f"{preset_name}_{duration}s"
+    key = _record_key(preset_name, duration)
     current = data.get(key)
 
     if current and current.get("score", 0) >= score:

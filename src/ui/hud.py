@@ -25,6 +25,10 @@ class HUD:
         self._last_deviation = 0.0
         self._rating_display_time = 0.0
 
+        # Cached panel surface
+        self._panel = pygame.Surface((260, 260), pygame.SRCALPHA)
+        self._panel.fill(HUD_BG)
+
     def _init_fonts(self):
         pygame.font.init()
         self.font_large = pygame.font.SysFont("consolas", 28, bold=True)
@@ -55,12 +59,10 @@ class HUD:
         margin = 16
         y = margin
 
-        # Background panel
+        # Background panel (pre-rendered)
         panel_w = 260
         panel_h = 260
-        panel = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
-        panel.fill(HUD_BG)
-        self.surface.blit(panel, (margin, margin))
+        self.surface.blit(self._panel, (margin, margin))
 
         x = margin + 12
         y = margin + 10
