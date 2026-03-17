@@ -4,6 +4,15 @@ import random
 import pytest
 from src.engine.rhythm import PolyrhythmSession
 from src.engine.scoring import HitDetector, SessionStats
+from src.config import set_difficulty
+
+
+@pytest.fixture(autouse=True)
+def strict_difficulty():
+    """Tests use strict windows for deterministic results."""
+    set_difficulty("strict")
+    yield
+    set_difficulty("strict")
 
 
 PRESETS = [

@@ -4,14 +4,12 @@ import math
 import time
 import pygame
 import random as _random
-from src.config import PRESETS, VISUAL_MODES, SURPRISE_POOL
+from src.config import PRESETS, VISUAL_MODES, SURPRISE_POOL, PRESET_INDEX_BY_ID, DEFAULT_PRESET_ID
 from src.visuals.colors import (
     BG_DARK, CYAN, MAGENTA, NEON_GREEN, YELLOW, HOT_PINK, PURPLE,
     TEXT_COLOR, TEXT_DIM
 )
-from src.engine.progression import (
-    get_unlocked_preset_indices, get_preset_tier, TIERS
-)
+from src.engine.progression import get_unlocked_preset_indices, get_preset_tier
 
 
 class MainMenu:
@@ -40,7 +38,7 @@ class MainMenu:
         self.mode = ""  # "freeplay", "challenge", "progression"
 
         # Configuration (output)
-        self.chosen_preset_idx = 0  # default 3:2
+        self.chosen_preset_idx = PRESET_INDEX_BY_ID.get(DEFAULT_PRESET_ID, 0)
         self.chosen_bpm = 120
         self.chosen_duration = 60
         self.chosen_visual = 0
@@ -225,20 +223,16 @@ class MainMenu:
 
         for i in range(start, min(start + visible, len(PRESETS))):
             preset = PRESETS[i]
-            name = preset[0]
-            category = preset[3] if len(preset) > 3 else ""
             is_sel = (i == self.selected)
             is_locked = (self.mode == "progression" and i not in unlocked)
-            tier = get_preset_tier(i)
-            tier_str = f"T{tier}" if tier else ""
-            cat_tag = f"[{category}]" if category else ""
+            tier_str = f"T{preset.tier}" if preset.tier else ""
 
             if is_locked:
-                label = f"  {tier_str}  {name} [LOCKED]"
+                label = f"  {tier_str}  {preset.name} [LOCKED]"
                 color = (50, 40, 50)
             else:
-                label = f"  {tier_str}  {name}"
-                cat_c = cat_colors.get(category, TEXT_COLOR)
+                label = f"  {tier_str}  {preset.name}"
+                cat_c = cat_colors.get(preset.category, TEXT_COLOR)
                 color = cat_c if is_sel else TEXT_COLOR
 
             if is_sel:
@@ -269,7 +263,7 @@ class MainMenu:
         self.surface.blit(header, (cx - header.get_width() // 2, y))
         y += 60
 
-        preset_name = PRESETS[self.chosen_preset_idx][0]
+        preset_name = PRESETS[self.chosen_preset_idx].name
         info = self._font_med.render(
             f"{preset_name}  |  {self.chosen_bpm} BPM", True, TEXT_COLOR
         )

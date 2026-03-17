@@ -1,23 +1,33 @@
-"""Progressive difficulty — tier-based preset unlocking."""
+"""Progressive difficulty — tier-based preset unlocking.
+
+Uses preset IDs (not indices) for stability. Tiers are derived from
+the tier field on each Preset object in config.PRESETS.
+"""
 
 import json
 import os
+from src.config import (
+    PRESETS, PRESET_INDEX_BY_ID,
+    TIER_EASY, TIER_MEDIUM, TIER_HARD, TIER_VERY_HARD, TIER_EXPERT,
+    TIER_UNLOCK_GRADES,
+)
 
 PROGRESS_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "progress.json")
 
-# Tier definitions — ordered by difficulty
-TIERS = [
-    {"tier": 1, "presets": [0, 1, 2, 3],                          "require_grade": None, "require_tier": None},
-    {"tier": 2, "presets": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13],   "require_grade": "B",  "require_tier": 1},
-    {"tier": 3, "presets": [14, 15, 16, 17, 18, 19, 20],          "require_grade": "B",  "require_tier": 2},
-    {"tier": 4, "presets": [21, 22, 23, 24, 25, 26],              "require_grade": "A",  "require_tier": 3},
-    {"tier": 5, "presets": [27, 28, 29],                           "require_grade": "A",  "require_tier": 4},
-]
-
 GRADE_ORDER = {"S": 5, "A": 4, "B": 3, "C": 2, "D": 1}
 
-# Build lookup: tier_num -> preset indices
-TIER_PRESETS = {t["tier"]: t["presets"] for t in TIERS}
+# Derive tier membership from preset metadata — no hardcoded index lists
+TIER_NUMBERS = sorted({p.tier for p in PRESETS})
+
+# Map tier -> list of preset IDs in that tier
+TIER_PRESET_IDS: dict[int, list[str]] = {}
+for _p in PRESETS:
+    TIER_PRESET_IDS.setdefault(_p.tier, []).append(_p.id)
+
+# Map tier -> list of preset indices (for progression UI)
+TIER_PRESET_INDICES: dict[int, list[int]] = {}
+for _tier, _ids in TIER_PRESET_IDS.items():
+    TIER_PRESET_INDICES[_tier] = [PRESET_INDEX_BY_ID[_id] for _id in _ids]
 
 
 def _load_progress() -> dict:
@@ -25,7 +35,7 @@ def _load_progress() -> dict:
         with open(PROGRESS_PATH, "r") as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
-        return {"unlocked_tiers": [1], "best_grades": {}}
+        return {"unlocked_tiers": [TIER_EASY], "best_grades": {}}
 
 
 def _save_progress(data: dict):
@@ -35,15 +45,16 @@ def _save_progress(data: dict):
 
 
 def get_unlocked_tiers() -> list[int]:
-    return _load_progress().get("unlocked_tiers", [1])
+    return _load_progress().get("unlocked_tiers", [TIER_EASY])
 
 
 def get_unlocked_preset_indices() -> set[int]:
+    """Return set of preset indices that are unlocked."""
     unlocked_tiers = set(get_unlocked_tiers())
     indices = set()
-    for tier in TIERS:
-        if tier["tier"] in unlocked_tiers:
-            indices.update(tier["presets"])
+    for tier, idx_list in TIER_PRESET_INDICES.items():
+        if tier in unlocked_tiers:
+            indices.update(idx_list)
     return indices
 
 
@@ -52,38 +63,41 @@ def is_preset_unlocked(preset_idx: int) -> bool:
 
 
 def get_preset_tier(preset_idx: int) -> int | None:
-    for tier in TIERS:
-        if preset_idx in tier["presets"]:
-            return tier["tier"]
+    """Which tier does a preset belong to?"""
+    if 0 <= preset_idx < len(PRESETS):
+        return PRESETS[preset_idx].tier
     return None
 
 
-def record_grade(preset_idx: int, grade: str) -> list[int]:
+def record_grade(preset_id: str, grade: str) -> list[int]:
+    """Record a grade for a preset (by ID). Returns list of newly unlocked tier numbers."""
     progress = _load_progress()
     grades = progress.get("best_grades", {})
-    key = str(preset_idx)
 
-    old_grade = grades.get(key, "")
+    # Update best grade (keyed by preset ID, not index)
+    old_grade = grades.get(preset_id, "")
     if GRADE_ORDER.get(grade, 0) > GRADE_ORDER.get(old_grade, 0):
-        grades[key] = grade
+        grades[preset_id] = grade
 
     progress["best_grades"] = grades
 
+    # Check unlocks
     newly_unlocked = []
-    unlocked = set(progress.get("unlocked_tiers", [1]))
+    unlocked = set(progress.get("unlocked_tiers", [TIER_EASY]))
 
-    for tier_def in TIERS:
-        tier_num = tier_def["tier"]
+    for tier_num in TIER_NUMBERS:
         if tier_num in unlocked:
             continue
-        req_grade = tier_def["require_grade"]
-        req_tier = tier_def["require_tier"]
-        if req_tier is None:
+        req_grade = TIER_UNLOCK_GRADES.get(tier_num)
+        if req_grade is None:
             continue
 
-        req_tier_presets = TIER_PRESETS.get(req_tier, [])
-        for pidx in req_tier_presets:
-            best = grades.get(str(pidx), "")
+        # Need the required grade on any preset from the previous tier
+        prev_tier = tier_num - 1
+        prev_ids = TIER_PRESET_IDS.get(prev_tier, [])
+
+        for pid in prev_ids:
+            best = grades.get(pid, "")
             if GRADE_ORDER.get(best, 0) >= GRADE_ORDER.get(req_grade, 0):
                 unlocked.add(tier_num)
                 newly_unlocked.append(tier_num)

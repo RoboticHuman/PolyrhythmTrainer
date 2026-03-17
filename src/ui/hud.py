@@ -5,7 +5,7 @@ from src.engine.scoring import SessionStats, HitRating
 from src.visuals.colors import (
     TEXT_COLOR, TEXT_DIM, HUD_BG,
     COLOR_PERFECT, COLOR_GOOD, COLOR_OK, COLOR_MISS, CYAN, MAGENTA,
-    rating_color
+    NEON_GREEN, HOT_PINK, rating_color
 )
 
 
@@ -47,7 +47,7 @@ class HUD:
         return rating_color(rating)
 
     def render(self, stats: SessionStats, bpm: float, rhythm_desc: str,
-               current_time: float, visual_mode: str):
+               current_time: float, visual_mode: str, difficulty: str = ""):
         """Render the HUD overlay."""
         # Always show the big rating popup in center
         self._draw_rating_popup(current_time)
@@ -122,7 +122,7 @@ class HUD:
             "Tab: Toggle stats",
             "V: Cycle visuals",
             "C: CRT filter",
-            "H: Hit sounds",
+            "H: Hit sounds  N: Difficulty",
             "+/-: BPM",
             "[/]: Presets",
             "Esc: Quit",
@@ -132,9 +132,16 @@ class HUD:
             self._draw_text(hint, w - margin - 180, hy, self.font_tiny, TEXT_DIM)
             hy += 16
 
-        # Visual mode indicator
-        self._draw_text(f"[{visual_mode}]", w - margin - 180,
-                        margin + 10, self.font_small, TEXT_DIM)
+        # Visual mode + difficulty indicator
+        mode_str = f"[{visual_mode}]"
+        if difficulty:
+            diff_color = NEON_GREEN if difficulty == "relaxed" else HOT_PINK
+            mode_str += f"  [{difficulty}]"
+            self._draw_text(mode_str, w - margin - 260,
+                            margin + 10, self.font_small, diff_color)
+        else:
+            self._draw_text(mode_str, w - margin - 180,
+                            margin + 10, self.font_small, TEXT_DIM)
 
     def _draw_rating_popup(self, current_time: float):
         """Draw big rating text in center of screen on hit."""

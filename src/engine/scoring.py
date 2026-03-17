@@ -1,6 +1,6 @@
 """Hit detection and accuracy scoring."""
 
-from src.config import PERFECT_WINDOW_MS, GOOD_WINDOW_MS, OK_WINDOW_MS, MISS_WINDOW_MS
+import src.config as _config
 
 
 class HitRating:
@@ -13,11 +13,11 @@ class HitRating:
 def rate_hit(deviation_ms: float) -> str:
     """Rate a hit based on absolute deviation in milliseconds."""
     abs_dev = abs(deviation_ms)
-    if abs_dev <= PERFECT_WINDOW_MS:
+    if abs_dev <= _config.PERFECT_WINDOW_MS:
         return HitRating.PERFECT
-    elif abs_dev <= GOOD_WINDOW_MS:
+    elif abs_dev <= _config.GOOD_WINDOW_MS:
         return HitRating.GOOD
-    elif abs_dev <= OK_WINDOW_MS:
+    elif abs_dev <= _config.OK_WINDOW_MS:
         return HitRating.OK
     else:
         return HitRating.MISS
@@ -179,7 +179,7 @@ class HitDetector:
         deviation_ms = best_dist * self.cycle_duration * 1000.0
 
         # Check if within scoring window
-        if abs(deviation_ms) > MISS_WINDOW_MS:
+        if abs(deviation_ms) > _config.MISS_WINDOW_MS:
             return None
 
         # Prevent double-scoring the same beat

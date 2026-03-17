@@ -7,7 +7,9 @@ from src.config import (
     SCREEN_WIDTH, SCREEN_HEIGHT, FPS, WINDOW_TITLE,
     SAMPLE_RATE, AUDIO_BUFFER, AUDIO_CHANNELS,
     DEFAULT_BPM, MIN_BPM, MAX_BPM, VISUAL_MODES, PRESETS,
-    LATENCY_COMPENSATION_MS
+    PRESET_INDEX_BY_ID, DEFAULT_PRESET_ID,
+    LATENCY_COMPENSATION_MS,
+    DIFFICULTY_MODES, DEFAULT_DIFFICULTY, set_difficulty,
 )
 from src.engine.clock import Clock
 from src.engine.rhythm import PolyrhythmSession
@@ -52,11 +54,13 @@ class App:
         # App state
         self.running = True
         self.state = STATE_MENU
-        self.game_mode = "freeplay"  # freeplay, challenge, progression
+        self.game_mode = "freeplay"
+        self.difficulty = DEFAULT_DIFFICULTY
+        self._difficulty_keys = list(DIFFICULTY_MODES.keys())
 
         # Core
         self.bpm = DEFAULT_BPM
-        self.current_preset_idx = 0  # Start with 3:2
+        self.current_preset_idx = PRESET_INDEX_BY_ID.get(DEFAULT_PRESET_ID, 0)
         self._load_preset(self.current_preset_idx)
 
         self.clock = Clock(self.bpm, self.session.base_beats)
@@ -114,19 +118,17 @@ class App:
         self._init_midi()
 
     def _load_preset(self, idx: int):
-        preset = PRESETS[idx % len(PRESETS)]
-        name, layer_defs, base = preset[0], preset[1], preset[2]
-        # Build RhythmLayer objects — ints become evenly spaced,
-        # lists of floats become custom phases
         from src.engine.rhythm import RhythmLayer
+        preset = PRESETS[idx % len(PRESETS)]
         rhythm_layers = []
-        for ld in layer_defs:
+        for ld in preset.layers:
             if isinstance(ld, list):
                 rhythm_layers.append(RhythmLayer(phases=ld))
             else:
                 rhythm_layers.append(RhythmLayer(beats=ld))
-        self.session = PolyrhythmSession(self.bpm, rhythm_layers, base)
-        self.preset_name = name
+        self.session = PolyrhythmSession(self.bpm, rhythm_layers, preset.base_beats)
+        self.preset_name = preset.name
+        self.preset_id = preset.id
 
     def _init_midi(self):
         if not MidiInput.available():
@@ -258,13 +260,13 @@ class App:
 
         # Save record
         self._results_new_best = records.save_if_best(
-            self.preset_name, self._challenge_duration,
+            self.preset_id, self._challenge_duration,
             self.stats.score, self.stats.accuracy_pct,
             grade, self.stats.best_combo, self._results_bpm_reached
         )
 
         # Check progression unlocks
-        self._results_unlocks = progression.record_grade(self.current_preset_idx, grade)
+        self._results_unlocks = progression.record_grade(self.preset_id, grade)
 
         self.state = STATE_RESULTS
 
@@ -315,6 +317,11 @@ class App:
                     self.crt.enabled = not self.crt.enabled
                 elif event.key == pygame.K_h:
                     self.hit_sounds.toggle_mode()
+                elif event.key == pygame.K_n:
+                    idx = self._difficulty_keys.index(self.difficulty)
+                    idx = (idx + 1) % len(self._difficulty_keys)
+                    self.difficulty = self._difficulty_keys[idx]
+                    set_difficulty(self.difficulty)
                 elif event.key == pygame.K_EQUALS or event.key == pygame.K_PLUS:
                     if self.game_mode == "freeplay":
                         self.bpm = min(MAX_BPM, self.bpm + 5)
@@ -423,6 +430,7 @@ class App:
             rhythm_desc=self.preset_name,
             current_time=time.perf_counter(),
             visual_mode=mode_label,
+            difficulty=self.difficulty,
         )
 
         self.crt.apply(self.screen)

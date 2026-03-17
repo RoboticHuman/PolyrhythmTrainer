@@ -18,22 +18,42 @@ DEFAULT_BPM = 120
 MIN_BPM = 40
 MAX_BPM = 300
 
-# Tolerance windows in milliseconds
-PERFECT_WINDOW_MS = 20
-GOOD_WINDOW_MS = 50
-OK_WINDOW_MS = 100
-MISS_WINDOW_MS = 150  # Beyond this, not registered as attempt
+# Difficulty modes — tolerance windows in milliseconds
+DIFFICULTY_MODES = {
+    "relaxed": {"perfect": 40, "good": 100, "ok": 180, "miss": 250},
+    "strict":  {"perfect": 20, "good": 50,  "ok": 100, "miss": 150},
+}
+DEFAULT_DIFFICULTY = "relaxed"
+
+# Active windows — set by set_difficulty()
+PERFECT_WINDOW_MS = 40
+GOOD_WINDOW_MS = 100
+OK_WINDOW_MS = 180
+MISS_WINDOW_MS = 250
+
+
+def set_difficulty(mode: str):
+    """Update the global tolerance windows."""
+    global PERFECT_WINDOW_MS, GOOD_WINDOW_MS, OK_WINDOW_MS, MISS_WINDOW_MS
+    windows = DIFFICULTY_MODES.get(mode, DIFFICULTY_MODES[DEFAULT_DIFFICULTY])
+    PERFECT_WINDOW_MS = windows["perfect"]
+    GOOD_WINDOW_MS = windows["good"]
+    OK_WINDOW_MS = windows["ok"]
+    MISS_WINDOW_MS = windows["miss"]
+
+
+# Initialize to default
+set_difficulty(DEFAULT_DIFFICULTY)
 
 # Input
 KEYBOARD_LAYER_KEYS = {
-    "d": 0,       # Layer 0 — left hand
-    "f": 0,       # Layer 0 — left hand (either finger)
-    "j": 1,       # Layer 1 — right hand
-    "k": 1,       # Layer 1 — right hand (either finger)
-    "space": 2,   # Layer 2 — either hand (for 3-layer presets)
+    "d": 0,
+    "f": 0,
+    "j": 1,
+    "k": 1,
+    "space": 2,
 }
 
-# Short labels shown next to each layer in visuals
 LAYER_KEY_LABELS = {
     0: "D/F",
     1: "J/K",
@@ -43,11 +63,10 @@ LAYER_KEY_LABELS = {
 # Visual modes
 VISUAL_MODES = ["orbits", "gameoflife", "automata", "boxing", "blacksmith", "dancebattle"]
 
-# Polyrhythm presets
-# Each entry: (name, layers, base_beats, category)
-# layers: list of int (evenly spaced) or list of floats (custom beat phases 0.0-1.0)
-#
-# Helper: convert grouping like [2,2,3] in 7/8 to phases
+
+# --- Preset system ---
+# Each preset has a unique string ID, so reordering never breaks anything.
+
 def _grouping_to_phases(groups: list[int]) -> list[float]:
     """Convert a grouping like [2,2,3] to normalized phases [0.0, 0.286, 0.571]."""
     total = sum(groups)
@@ -58,47 +77,85 @@ def _grouping_to_phases(groups: list[int]) -> list[float]:
         pos += g
     return phases
 
+
+# Difficulty tiers
+TIER_EASY = 1
+TIER_MEDIUM = 2
+TIER_HARD = 3
+TIER_VERY_HARD = 4
+TIER_EXPERT = 5
+
+# Grade required to unlock next tier
+TIER_UNLOCK_GRADES = {
+    TIER_MEDIUM: "B",
+    TIER_HARD: "B",
+    TIER_VERY_HARD: "A",
+    TIER_EXPERT: "A",
+}
+
+
+class Preset:
+    """A single rhythm preset with all its metadata."""
+    __slots__ = ("id", "name", "layers", "base_beats", "category", "tier")
+
+    def __init__(self, id: str, name: str, layers: list, base_beats: int,
+                 category: str, tier: int):
+        self.id = id
+        self.name = name
+        self.layers = layers  # list of int (even) or list[float] (custom phases)
+        self.base_beats = base_beats
+        self.category = category
+        self.tier = tier
+
+
+# Master preset list — ordered by difficulty.
+# The order here defines display order. IDs are stable identifiers.
 PRESETS = [
-    # --- Easy: simple polyrhythms ---
-    ("3:2", [3, 2], 2, "poly"),                                             # 0
-    ("2:3", [2, 3], 4, "poly"),                                             # 1
-    ("5/4 (3+2)", [_grouping_to_phases([3, 2])], 4, "odd"),                 # 2
-    ("5/4 (2+3)", [_grouping_to_phases([2, 3])], 4, "odd"),                 # 3
+    # --- Easy ---
+    Preset("poly_3_2",      "3:2",               [3, 2], 2, "poly", TIER_EASY),
+    Preset("poly_2_3",      "2:3",               [2, 3], 4, "poly", TIER_EASY),
+    Preset("odd_5_4_3p2",   "5/4 (3+2)",         [_grouping_to_phases([3, 2])], 4, "odd", TIER_EASY),
+    Preset("odd_5_4_2p3",   "5/4 (2+3)",         [_grouping_to_phases([2, 3])], 4, "odd", TIER_EASY),
 
-    # --- Medium: classic polys + world rhythms ---
-    ("3:4", [3, 4], 4, "poly"),                                             # 4
-    ("4:3", [4, 3], 4, "poly"),                                             # 5
-    ("Bossa Nova", [_grouping_to_phases([3, 3, 4, 3, 3])], 4, "world"),     # 6
-    ("Afro-Cuban 6/8", [_grouping_to_phases([2, 1, 2, 1])], 8, "world"),    # 7
-    ("Afro-Cuban 12/8 Bell", [_grouping_to_phases([2, 2, 1, 2, 2, 2, 1])], 8, "world"),  # 8
-    ("7/8 (2+2+3)", [_grouping_to_phases([2, 2, 3])], 8, "odd"),            # 8
-    ("7/8 (3+2+2)", [_grouping_to_phases([3, 2, 2])], 8, "odd"),            # 9
-    ("7/8 (2+3+2)", [_grouping_to_phases([2, 3, 2])], 8, "odd"),            # 10
-    ("Rumba Clave", [_grouping_to_phases([3, 3, 4, 2, 4])], 4, "world"),    # 11
-    ("Son Clave", [_grouping_to_phases([3, 3, 4, 2, 4])], 4, "world"),      # 12
+    # --- Medium ---
+    Preset("poly_3_4",      "3:4",               [3, 4], 4, "poly", TIER_MEDIUM),
+    Preset("poly_4_3",      "4:3",               [4, 3], 4, "poly", TIER_MEDIUM),
+    Preset("world_bossa",   "Bossa Nova",        [_grouping_to_phases([3, 3, 4, 3, 3])], 4, "world", TIER_MEDIUM),
+    Preset("world_afro6",   "Afro-Cuban 6/8",    [_grouping_to_phases([2, 1, 2, 1])], 8, "world", TIER_MEDIUM),
+    Preset("world_afro12",  "Afro-Cuban 12/8 Bell", [_grouping_to_phases([2, 2, 1, 2, 2, 2, 1])], 8, "world", TIER_MEDIUM),
+    Preset("odd_7_8_223",   "7/8 (2+2+3)",       [_grouping_to_phases([2, 2, 3])], 8, "odd", TIER_MEDIUM),
+    Preset("odd_7_8_322",   "7/8 (3+2+2)",       [_grouping_to_phases([3, 2, 2])], 8, "odd", TIER_MEDIUM),
+    Preset("odd_7_8_232",   "7/8 (2+3+2)",       [_grouping_to_phases([2, 3, 2])], 8, "odd", TIER_MEDIUM),
+    Preset("world_rumba",   "Rumba Clave",       [_grouping_to_phases([3, 3, 4, 2, 4])], 4, "world", TIER_MEDIUM),
+    Preset("world_son",     "Son Clave",         [_grouping_to_phases([3, 3, 4, 2, 4])], 4, "world", TIER_MEDIUM),
 
-    # --- Hard: wider polys + grouped polys ---
-    ("5:4", [5, 4], 4, "poly"),                                             # 13
-    ("5:3", [5, 3], 4, "poly"),                                             # 14
-    ("9/8 (2+2+2+3)", [_grouping_to_phases([2, 2, 2, 3])], 8, "odd"),       # 15
-    ("9/8 (3+3+3)", [_grouping_to_phases([3, 3, 3])], 8, "odd"),            # 16
-    ("5/4 (3+2) vs 4", [_grouping_to_phases([3, 2]), 4], 4, "poly-grouped"),# 17
-    ("7/8 (2+2+3) vs 3", [_grouping_to_phases([2, 2, 3]), 3], 8, "poly-grouped"),  # 18
-    ("Taksim 10/8", [_grouping_to_phases([3, 2, 2, 3])], 8, "world"),       # 19
+    # --- Hard ---
+    Preset("poly_5_4",      "5:4",               [5, 4], 4, "poly", TIER_HARD),
+    Preset("poly_5_3",      "5:3",               [5, 3], 4, "poly", TIER_HARD),
+    Preset("odd_9_8_2223",  "9/8 (2+2+2+3)",     [_grouping_to_phases([2, 2, 2, 3])], 8, "odd", TIER_HARD),
+    Preset("odd_9_8_333",   "9/8 (3+3+3)",       [_grouping_to_phases([3, 3, 3])], 8, "odd", TIER_HARD),
+    Preset("pg_5_4v4",      "5/4 (3+2) vs 4",    [_grouping_to_phases([3, 2]), 4], 4, "poly-grouped", TIER_HARD),
+    Preset("pg_7_8v3",      "7/8 (2+2+3) vs 3",  [_grouping_to_phases([2, 2, 3]), 3], 8, "poly-grouped", TIER_HARD),
+    Preset("world_taksim",  "Taksim 10/8",       [_grouping_to_phases([3, 2, 2, 3])], 8, "world", TIER_HARD),
 
-    # --- Very Hard: big ratios + complex meters ---
-    ("7:4", [7, 4], 4, "poly"),                                             # 20
-    ("7:8", [7, 8], 8, "poly"),                                             # 21
-    ("7/8 (3+2+2) vs 4", [_grouping_to_phases([3, 2, 2]), 4], 8, "poly-grouped"),  # 22
-    ("9/8 (2+2+2+3) vs 4", [_grouping_to_phases([2, 2, 2, 3]), 4], 8, "poly-grouped"),  # 23
-    ("11/8 (3+3+3+2)", [_grouping_to_phases([3, 3, 3, 2])], 8, "odd"),      # 24
-    ("13/8 (3+3+2+3+2)", [_grouping_to_phases([3, 3, 2, 3, 2])], 8, "odd"), # 25
+    # --- Very Hard ---
+    Preset("poly_7_4",      "7:4",               [7, 4], 4, "poly", TIER_VERY_HARD),
+    Preset("poly_7_8",      "7:8",               [7, 8], 8, "poly", TIER_VERY_HARD),
+    Preset("pg_7_8v4",      "7/8 (3+2+2) vs 4",  [_grouping_to_phases([3, 2, 2]), 4], 8, "poly-grouped", TIER_VERY_HARD),
+    Preset("pg_9_8v4",      "9/8 (2+2+2+3) vs 4",[_grouping_to_phases([2, 2, 2, 3]), 4], 8, "poly-grouped", TIER_VERY_HARD),
+    Preset("odd_11_8",      "11/8 (3+3+3+2)",    [_grouping_to_phases([3, 3, 3, 2])], 8, "odd", TIER_VERY_HARD),
+    Preset("odd_13_8",      "13/8 (3+3+2+3+2)",  [_grouping_to_phases([3, 3, 2, 3, 2])], 8, "odd", TIER_VERY_HARD),
 
-    # --- Expert: 3 simultaneous layers ---
-    ("5:4:3", [5, 4, 3], 4, "advanced"),                                    # 26
-    ("3:4:5", [3, 4, 5], 4, "advanced"),                                    # 27
-    ("7:5:3", [7, 5, 3], 4, "advanced"),                                    # 28
+    # --- Expert ---
+    Preset("adv_5_4_3",     "5:4:3",             [5, 4, 3], 4, "advanced", TIER_EXPERT),
+    Preset("adv_3_4_5",     "3:4:5",             [3, 4, 5], 4, "advanced", TIER_EXPERT),
+    Preset("adv_7_5_3",     "7:5:3",             [7, 5, 3], 4, "advanced", TIER_EXPERT),
 ]
 
-# Surprise Me pool — all indices
+# Lookup helpers — derived from PRESETS, never hardcoded
+PRESET_BY_ID: dict[str, Preset] = {p.id: p for p in PRESETS}
+PRESET_INDEX_BY_ID: dict[str, int] = {p.id: i for i, p in enumerate(PRESETS)}
+DEFAULT_PRESET_ID = "poly_3_2"
+
+# Surprise Me pool — all indices (auto-generated)
 SURPRISE_POOL = list(range(len(PRESETS)))
