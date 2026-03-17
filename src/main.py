@@ -56,7 +56,7 @@ class App:
 
         # Core
         self.bpm = DEFAULT_BPM
-        self.current_preset_idx = 5
+        self.current_preset_idx = 0  # Start with 3:2
         self._load_preset(self.current_preset_idx)
 
         self.clock = Clock(self.bpm, self.session.base_beats)
@@ -114,8 +114,18 @@ class App:
         self._init_midi()
 
     def _load_preset(self, idx: int):
-        name, layers, base = PRESETS[idx % len(PRESETS)]
-        self.session = PolyrhythmSession(self.bpm, layers, base)
+        preset = PRESETS[idx % len(PRESETS)]
+        name, layer_defs, base = preset[0], preset[1], preset[2]
+        # Build RhythmLayer objects — ints become evenly spaced,
+        # lists of floats become custom phases
+        from src.engine.rhythm import RhythmLayer
+        rhythm_layers = []
+        for ld in layer_defs:
+            if isinstance(ld, list):
+                rhythm_layers.append(RhythmLayer(phases=ld))
+            else:
+                rhythm_layers.append(RhythmLayer(beats=ld))
+        self.session = PolyrhythmSession(self.bpm, rhythm_layers, base)
         self.preset_name = name
 
     def _init_midi(self):
@@ -410,7 +420,7 @@ class App:
 
         self.hud.render(
             stats=self.stats, bpm=self.bpm,
-            rhythm_desc=f"{self.preset_name} ({self.session.description})",
+            rhythm_desc=self.preset_name,
             current_time=time.perf_counter(),
             visual_mode=mode_label,
         )

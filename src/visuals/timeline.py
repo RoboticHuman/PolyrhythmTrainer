@@ -101,8 +101,43 @@ class Timeline:
             dim = tuple(c // 4 for c in color[:3])
 
             # Track line
+            track_w = self.width - 2 * margin
             pygame.draw.line(self.surface, dim,
                              (margin, ry), (self.width - margin, ry), 2)
+
+            # Subdivision ticks — small marks between beats to show the pulse grid
+            # Compute subdivisions from the gaps between beats
+            if len(phases) >= 2:
+                tick_color = (50, 45, 70)  # Muted purple — visible but not distracting
+                for bi in range(len(phases)):
+                    p_start = phases[bi]
+                    p_end = phases[(bi + 1) % len(phases)]
+                    if p_end <= p_start:
+                        p_end += 1.0  # Wrap around
+
+                    # Find the gap in "base units" — subdivide into smallest whole unit
+                    gap = p_end - p_start
+                    # Aim for ticks roughly every 1/base_beats of the cycle
+                    beats_in_layer = len(phases)
+                    # Use ~2-4 subdivisions per gap, capped
+                    n_subs = max(2, min(6, round(gap * beats_in_layer * 3)))
+
+                    for si in range(1, n_subs):
+                        sub_phase = (p_start + gap * si / n_subs) % 1.0
+                        sx = margin + int(sub_phase * track_w)
+
+                        # Animate: brighten and stretch when playhead is near
+                        dist = abs(cycle_phase - sub_phase)
+                        dist = min(dist, 1.0 - dist)  # Circular distance
+                        proximity = max(0.0, 1.0 - dist / 0.04)  # Glow within 4% of cycle
+
+                        half_h = 5 + int(proximity * 4)
+                        r = min(255, tick_color[0] + int(proximity * 120))
+                        g = min(255, tick_color[1] + int(proximity * 100))
+                        b = min(255, tick_color[2] + int(proximity * 80))
+
+                        pygame.draw.line(self.surface, (r, g, b),
+                                         (sx, ry - half_h), (sx, ry + half_h), 1)
 
             # Key label on the left
             key_label = LAYER_KEY_LABELS.get(li, "")
@@ -112,7 +147,6 @@ class Timeline:
                                   (4, ry - label_surf.get_height() // 2))
 
             # Beat markers — including ghost markers from next cycle for lookahead
-            track_w = self.width - 2 * margin
             for bi, phase in enumerate(phases):
                 # Draw the actual marker
                 x = margin + int(phase * track_w)

@@ -3,7 +3,8 @@
 import math
 import time
 import pygame
-from src.config import PRESETS, VISUAL_MODES
+import random as _random
+from src.config import PRESETS, VISUAL_MODES, SURPRISE_POOL
 from src.visuals.colors import (
     BG_DARK, CYAN, MAGENTA, NEON_GREEN, YELLOW, HOT_PINK, PURPLE,
     TEXT_COLOR, TEXT_DIM
@@ -39,7 +40,7 @@ class MainMenu:
         self.mode = ""  # "freeplay", "challenge", "progression"
 
         # Configuration (output)
-        self.chosen_preset_idx = 5  # default 3:4
+        self.chosen_preset_idx = 0  # default 3:2
         self.chosen_bpm = 120
         self.chosen_duration = 60
         self.chosen_visual = 0
@@ -49,6 +50,7 @@ class MainMenu:
             ("Freeplay", "Infinite practice — no timer, no score", CYAN),
             ("Challenge", "Timed rounds with scoring and grades", MAGENTA),
             ("Progression", "Unlock harder rhythms by mastering easier ones", NEON_GREEN),
+            ("Surprise Me!", "Random preset — test your adaptability", YELLOW),
         ]
 
     def handle_event(self, event: pygame.event.Event) -> str | None:
@@ -73,8 +75,13 @@ class MainMenu:
         elif event.key == pygame.K_DOWN:
             self.selected = (self.selected + 1) % len(self._main_options)
         elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
-            modes = ["freeplay", "challenge", "progression"]
+            modes = ["freeplay", "challenge", "progression", "surprise"]
             self.mode = modes[self.selected]
+            if self.mode == "surprise":
+                # Pick a random preset and go straight to freeplay
+                self.chosen_preset_idx = _random.choice(SURPRISE_POOL)
+                self.mode = "freeplay"
+                return "start_freeplay"
             self.state = self.STATE_PRESET
             self.selected = self.chosen_preset_idx
         return None
@@ -209,19 +216,30 @@ class MainMenu:
         start = max(0, self.selected - visible // 2)
         start = min(start, max(0, len(PRESETS) - visible))
 
+        # Category colors
+        cat_colors = {
+            "basics": (100, 100, 120), "odd": (120, 100, 80),
+            "poly": CYAN, "poly-grouped": MAGENTA,
+            "advanced": HOT_PINK, "world": YELLOW,
+        }
+
         for i in range(start, min(start + visible, len(PRESETS))):
-            name, layers, base = PRESETS[i]
+            preset = PRESETS[i]
+            name = preset[0]
+            category = preset[3] if len(preset) > 3 else ""
             is_sel = (i == self.selected)
             is_locked = (self.mode == "progression" and i not in unlocked)
             tier = get_preset_tier(i)
             tier_str = f"T{tier}" if tier else ""
+            cat_tag = f"[{category}]" if category else ""
 
             if is_locked:
                 label = f"  {tier_str}  {name} [LOCKED]"
                 color = (50, 40, 50)
             else:
                 label = f"  {tier_str}  {name}"
-                color = CYAN if is_sel else TEXT_COLOR
+                cat_c = cat_colors.get(category, TEXT_COLOR)
+                color = cat_c if is_sel else TEXT_COLOR
 
             if is_sel:
                 # Highlight bar
