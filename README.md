@@ -195,7 +195,3 @@ Tiers and progression update automatically — no index management needed.
 3. Use `Timeline` component for the beat bar at the bottom
 4. Add to `VISUAL_MODES` in `config.py`
 5. Import and add to `self.visualizers` list in `main.py`
-
-## License
-
-MIT
