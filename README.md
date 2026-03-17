@@ -13,8 +13,8 @@ A rhythm and polyrhythm training tool with multiple visual modes, challenge scor
 
 ```bash
 # Clone and enter the project
-git clone <repo-url>
-cd polyrythm
+git clone https://github.com/RoboticHuman/PolyrhythmTrainer.git
+cd PolyrhythmTrainer
 
 # Install dependencies
 uv sync
@@ -93,7 +93,7 @@ Ordered by difficulty across 5 tiers:
 ## Project Structure
 
 ```
-polyrythm/
+PolyrhythmTrainer/
 ├── src/
 │   ├── main.py              # Entry point, state machine, game loop
 │   ├── config.py             # Presets, settings, difficulty modes
