@@ -22,6 +22,7 @@ from src.visuals.gameoflife import GameOfLifeVisualizer
 from src.visuals.automata import AutomataVisualizer
 from src.visuals.boxing import BoxingVisualizer
 from src.visuals.blacksmith import BlacksmithVisualizer
+from src.visuals.dancebattle import DanceBattleVisualizer
 from src.visuals.colors import LAYER_COLORS, BG_DARK
 from src.visuals.effects import CRTFilter
 from src.ui.hud import HUD
@@ -73,6 +74,7 @@ class App:
             AutomataVisualizer(self.screen),
             BoxingVisualizer(self.screen),
             BlacksmithVisualizer(self.screen),
+            DanceBattleVisualizer(self.screen),
         ]
         self.crt = CRTFilter(SCREEN_WIDTH, SCREEN_HEIGHT)
         self.crt.enabled = True

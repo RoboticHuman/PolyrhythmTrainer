@@ -15,6 +15,7 @@ from src.visuals.colors import (
 )
 from src.visuals.effects import bloom_pass, ParticleSystem, Particle
 from src.visuals.timeline import Timeline
+from src.visuals.speechbubble import draw_speech_bubble
 from src.engine.scoring import HitRating
 
 
@@ -294,47 +295,8 @@ class BlacksmithVisualizer(BaseVisualizer):
         # Speech bubble
         bubble_age = time.perf_counter() - c["bubble_time"]
         if c["bubble_text"] and bubble_age < 2.0:
-            self._draw_bubble(self.surface, x, head_y - head_r - 8, c["bubble_text"], bubble_age)
-
-    def _draw_bubble(self, surface: pygame.Surface, x: int, y: int,
-                     text: str, age: float):
-        """Draw a speech bubble above a character."""
-        # Fade in quickly, hold, fade out
-        if age < 0.1:
-            alpha = age / 0.1
-        elif age < 1.6:
-            alpha = 1.0
-        else:
-            alpha = max(0.0, 1.0 - (age - 1.6) / 0.4)
-
-        # Float upward slightly over time
-        y -= int(age * 8)
-
-        text_surf = self._label_font.render(text, True, (220, 210, 190))
-        tw, th = text_surf.get_size()
-        pad_x, pad_y = 8, 5
-        bw = tw + pad_x * 2
-        bh = th + pad_y * 2
-
-        # Bubble background
-        bubble = pygame.Surface((bw, bh + 6), pygame.SRCALPHA)
-        bg_alpha = int(180 * alpha)
-        pygame.draw.rect(bubble, (20, 15, 12, bg_alpha),
-                         (0, 0, bw, bh), border_radius=6)
-        pygame.draw.rect(bubble, (60, 50, 35, bg_alpha),
-                         (0, 0, bw, bh), 1, border_radius=6)
-        # Little triangle pointer
-        tri_x = bw // 2
-        pygame.draw.polygon(bubble, (20, 15, 12, bg_alpha),
-                            [(tri_x - 4, bh), (tri_x + 4, bh), (tri_x, bh + 5)])
-
-        # Blit bubble and text
-        bx = x - bw // 2
-        by_pos = y - bh - 5
-        surface.blit(bubble, (bx, by_pos))
-
-        text_surf.set_alpha(int(255 * alpha))
-        surface.blit(text_surf, (bx + pad_x, by_pos + pad_y))
+            draw_speech_bubble(self.surface, x, head_y - head_r - 8,
+                               c["bubble_text"], bubble_age)
 
     def _draw_door_and_light(self):
         """Draw the shop door and light shaft when open."""
