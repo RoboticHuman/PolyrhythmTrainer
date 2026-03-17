@@ -45,16 +45,26 @@ class Timeline:
 
     def _draw_marker(self, x: int, ry: int, li: int, bi: int, phase: float,
                      color: tuple, dim: tuple, cycle_phase: float, now: float,
-                     is_ghost: bool = False):
-        """Draw a single beat marker (or ghost) at position x."""
-        is_accent = (bi == 0)
-        draw_size = 10 if is_accent else 7
+                     is_ghost: bool = False, is_accent: bool = False,
+                     has_mixed_accents: bool = False):
+        """Draw a single beat marker (or ghost) at position x.
 
-        # Ghost markers are smaller and dimmer
+        has_mixed_accents: True if the layer has both accented and unaccented beats
+                          (grouped rhythms). False for evenly-spaced layers where
+                          all beats should be equally prominent.
+        """
+        if has_mixed_accents:
+            # Grouped rhythm: accents are big, subdivisions are small
+            draw_size = 11 if is_accent else 5
+        else:
+            # Even rhythm: downbeat slightly bigger, rest are uniform
+            draw_size = 10 if is_accent else 8
+
+        # Ghost markers: same proportions, just dimmer
         if is_ghost:
-            draw_size = max(4, draw_size - 3)
-            ghost_dim = tuple(c // 3 for c in color[:3])
-            pygame.draw.circle(self.surface, ghost_dim, (x, ry), draw_size)
+            draw_size = max(3, draw_size - 2)
+            ghost_color = tuple(c // 2 for c in color[:3])
+            pygame.draw.circle(self.surface, ghost_color, (x, ry), draw_size)
             return
 
         # Check hit flash
@@ -76,7 +86,13 @@ class Timeline:
             glow_color = tuple(int(c * flash_t * 0.4) for c in flash_color[:3])
             pygame.draw.circle(self.surface, glow_color, (x, ry), glow_r)
 
-        mc = flash_color if flash_t > 0.3 else (color if is_accent else dim)
+        if flash_t > 0.3:
+            mc = flash_color
+        elif has_mixed_accents:
+            # Accents: full color. Subdivisions: brighter than dim
+            mc = color if is_accent else tuple(min(255, c // 2 + 30) for c in color)
+        else:
+            mc = color
         pygame.draw.circle(self.surface, mc, (x, ry), draw_size)
 
     def draw(self, layers: list[dict], cycle_phase: float):
@@ -147,11 +163,18 @@ class Timeline:
                                   (4, ry - label_surf.get_height() // 2))
 
             # Beat markers — including ghost markers from next cycle for lookahead
+            accents = layer_data.get("accents", [])
+            # Check if this layer has a mix of accented and unaccented beats
+            # (i.e. it's a grouped rhythm, not evenly spaced)
+            n_accents = sum(1 for a in accents if a)
+            has_mixed = 0 < n_accents < len(accents)
+
             for bi, phase in enumerate(phases):
-                # Draw the actual marker
+                beat_accent = accents[bi] if bi < len(accents) else (bi == 0)
                 x = margin + int(phase * track_w)
                 self._draw_marker(x, ry, li, bi, phase, color, dim,
-                                  cycle_phase, now, is_ghost=False)
+                                  cycle_phase, now, is_ghost=False,
+                                  is_accent=beat_accent, has_mixed_accents=has_mixed)
 
                 # Ghost marker: wrap early beats to the right side
                 # If this beat is near the start (phase < 0.15), draw a ghost

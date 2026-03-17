@@ -25,6 +25,7 @@ from src.visuals.automata import AutomataVisualizer
 from src.visuals.boxing import BoxingVisualizer
 from src.visuals.blacksmith import BlacksmithVisualizer
 from src.visuals.dancebattle import DanceBattleVisualizer
+from src.visuals.cashier import CashierVisualizer
 from src.visuals.colors import LAYER_COLORS, BG_DARK
 from src.visuals.effects import CRTFilter
 from src.ui.hud import HUD
@@ -79,6 +80,7 @@ class App:
             BoxingVisualizer(self.screen),
             BlacksmithVisualizer(self.screen),
             DanceBattleVisualizer(self.screen),
+            CashierVisualizer(self.screen),
         ]
         self.crt = CRTFilter(SCREEN_WIDTH, SCREEN_HEIGHT)
         self.crt.enabled = True
@@ -122,10 +124,17 @@ class App:
         preset = PRESETS[idx % len(PRESETS)]
         rhythm_layers = []
         for ld in preset.layers:
-            if isinstance(ld, list):
-                rhythm_layers.append(RhythmLayer(phases=ld))
-            else:
+            if isinstance(ld, dict):
+                # Grouped rhythm: has phases + accents
+                rhythm_layers.append(RhythmLayer(
+                    phases=ld["phases"], accents=ld["accents"]
+                ))
+            elif isinstance(ld, int):
+                # Evenly spaced beats
                 rhythm_layers.append(RhythmLayer(beats=ld))
+            else:
+                # Legacy: list of floats (custom phases, no accents)
+                rhythm_layers.append(RhythmLayer(phases=ld))
         self.session = PolyrhythmSession(self.bpm, rhythm_layers, preset.base_beats)
         self.preset_name = preset.name
         self.preset_id = preset.id
@@ -145,7 +154,8 @@ class App:
         schedule = []
         for li, layer in enumerate(self.session.layers):
             for bi, phase in enumerate(layer.beat_phases):
-                schedule.append((phase, li, bi))
+                is_accent = layer.is_accent(bi)
+                schedule.append((phase, li, bi, is_accent))
         self.metronome.set_schedule(schedule, self.session.cycle_duration)
 
         self.hit_detectors = [
@@ -156,6 +166,7 @@ class App:
             {
                 "beats": layer.beats,
                 "phases": layer.beat_phases,
+                "accents": layer.accents,
                 "color": LAYER_COLORS[i % len(LAYER_COLORS)],
                 "name": layer.name,
             }

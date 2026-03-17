@@ -32,6 +32,7 @@ class Metronome:
     def __init__(self, sample_rate: int = 44100):
         self.sample_rate = sample_rate
         self._sounds: dict[int, pygame.mixer.Sound] = {}
+        self._accent_sounds: dict[int, pygame.mixer.Sound] = {}
         self._running = False
         self._thread: threading.Thread | None = None
 
@@ -46,18 +47,24 @@ class Metronome:
         self._generate_default_sounds()
 
     def _generate_default_sounds(self):
-        """Create distinct click sounds for different layers."""
-        self._sounds[0] = generate_click(freq=1200, duration_ms=25, volume=0.6)
-        self._sounds[1] = generate_click(freq=800, duration_ms=30, volume=0.5)
-        self._sounds[2] = generate_click(freq=600, duration_ms=35, volume=0.45)
-        self._sounds[-1] = generate_click(freq=1500, duration_ms=20, volume=0.7)
+        """Create distinct click sounds for different layers + accent variants."""
+        # Normal beats per layer
+        self._sounds[0] = generate_click(freq=1200, duration_ms=25, volume=0.5)
+        self._sounds[1] = generate_click(freq=800, duration_ms=30, volume=0.4)
+        self._sounds[2] = generate_click(freq=600, duration_ms=35, volume=0.35)
+        # Accented beats per layer (louder, sharper)
+        self._accent_sounds[0] = generate_click(freq=1500, duration_ms=20, volume=0.75)
+        self._accent_sounds[1] = generate_click(freq=1000, duration_ms=25, volume=0.65)
+        self._accent_sounds[2] = generate_click(freq=800, duration_ms=28, volume=0.55)
 
-    def get_sound(self, layer_index: int) -> pygame.mixer.Sound:
-        if layer_index in self._sounds:
-            return self._sounds[layer_index]
-        return self._sounds.get(0)
+    def get_sound(self, layer_index: int, accent: bool = False) -> pygame.mixer.Sound:
+        sounds = self._accent_sounds if accent else self._sounds
+        if layer_index in sounds:
+            return sounds[layer_index]
+        return sounds.get(0, self._sounds.get(0))
 
-    def set_schedule(self, schedule: list[tuple[float, int, int]], cycle_duration: float):
+    def set_schedule(self, schedule: list[tuple[float, int, int, bool]], cycle_duration: float):
+        """Schedule format: (phase, layer_idx, beat_idx, is_accent)."""
         self._schedule = sorted(schedule, key=lambda x: x[0])
         self._cycle_duration = cycle_duration
 
@@ -91,7 +98,9 @@ class Metronome:
             cycle_num = int(elapsed / self._cycle_duration)
             phase = (elapsed % self._cycle_duration) / self._cycle_duration
 
-            for sched_phase, layer_idx, beat_idx in self._schedule:
+            for sched_entry in self._schedule:
+                sched_phase, layer_idx, beat_idx = sched_entry[0], sched_entry[1], sched_entry[2]
+                is_accent = sched_entry[3] if len(sched_entry) > 3 else (beat_idx == 0)
                 if sched_phase > phase:
                     continue
 
@@ -106,7 +115,7 @@ class Metronome:
                     played.add(key)
                     continue
 
-                sound = self.get_sound(layer_idx)
+                sound = self.get_sound(layer_idx, accent=is_accent)
                 sound.play()
                 played.add(key)
 

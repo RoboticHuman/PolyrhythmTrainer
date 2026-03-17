@@ -163,26 +163,38 @@ Note: `mido` is installed but the rtmidi backend requires a C++ compiler for the
 In `src/config.py`, add a `Preset` object to the `PRESETS` list:
 
 ```python
+# Even polyrhythm (e.g. 3 against 4)
 Preset(
-    id="my_preset",           # Unique string ID (stable, never changes)
+    id="my_poly",             # Unique string ID (stable, never changes)
     name="My Rhythm",         # Display name
-    layers=[3, 4],            # int = even beats, list[float] = custom phases
+    layers=[3, 4],            # int = evenly spaced beats per layer
     base_beats=4,             # Reference for BPM (4 = quarter note, 8 = eighth)
     category="poly",          # For menu color coding
     tier=TIER_MEDIUM,         # Difficulty tier (controls progression unlocking)
 )
 ```
 
-For grouped rhythms, use `_grouping_to_phases()`:
+For grouped rhythms, use `_grouping()` — this creates ALL subdivisions with accents on grouping starts:
 
 ```python
+# 7/8 with 2+2+3 accent pattern = 7 beats, accents on 0, 2, 4
 Preset(
     id="odd_7_8_custom",
     name="7/8 (3+2+2)",
-    layers=[_grouping_to_phases([3, 2, 2])],  # -> [0.0, 0.429, 0.714]
+    layers=[_grouping([3, 2, 2])],  # All 7 subdivisions, accents on group starts
     base_beats=8,
     category="odd",
     tier=TIER_MEDIUM,
+)
+
+# Grouped layer against an even layer
+Preset(
+    id="pg_7_8v4",
+    name="7/8 (2+2+3) vs 4",
+    layers=[_grouping([2, 2, 3]), 4],  # Layer 0: grouped, Layer 1: even
+    base_beats=8,
+    category="poly-grouped",
+    tier=TIER_HARD,
 )
 ```
 

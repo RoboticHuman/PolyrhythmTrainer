@@ -17,29 +17,49 @@ def lcm_multi(values: list[int]) -> int:
 class RhythmLayer:
     """One rhythmic layer within a polyrhythm.
 
-    Can be created with either:
-      - beats (int): evenly spaced beats (e.g., 4 = quarter notes in 4/4)
-      - phases (list[float]): custom beat positions 0.0-1.0 (e.g., [0, 0.286, 0.571] for 2+2+3 in 7/8)
+    Beats have positions (phases) and accent flags.
+    For grouped rhythms like 7/8 (2+2+3):
+      - All 7 subdivisions are beats
+      - Grouping starts (0, 2, 4) are accented
+    For evenly spaced (e.g. beats=4):
+      - Beat 0 is accented, rest are normal
     """
 
     def __init__(self, beats: int = 0, name: str = "", layer_index: int = 0,
-                 phases: list[float] | None = None):
+                 phases: list[float] | None = None,
+                 accents: list[bool] | None = None):
         self.layer_index = layer_index
         self.name = name or f"Layer {layer_index}"
 
         if phases is not None:
-            # Custom beat positions
             self._beat_phases = sorted(phases)
             self.beats = len(self._beat_phases)
         else:
-            # Evenly spaced
             self.beats = beats
             self._beat_phases = [i / beats for i in range(beats)] if beats > 0 else []
+
+        # Accent pattern — which beats are stressed
+        if accents is not None:
+            self._accents = accents
+        else:
+            # Default: first beat is accented
+            self._accents = [i == 0 for i in range(self.beats)]
 
     @property
     def beat_phases(self) -> list[float]:
         """Normalized positions where this layer's beats fall (0.0 to 1.0)."""
         return self._beat_phases
+
+    @property
+    def accents(self) -> list[bool]:
+        """Which beats are accented (stressed)."""
+        return self._accents
+
+    def is_accent(self, beat_idx: int) -> bool:
+        """Check if a specific beat is accented."""
+        if 0 <= beat_idx < len(self._accents):
+            return self._accents[beat_idx]
+        return beat_idx == 0
 
     def nearest_beat_phase(self, phase: float) -> tuple[int, float]:
         """Find the nearest beat to a given cycle phase."""
@@ -63,13 +83,7 @@ class RhythmLayer:
 
 
 class PolyrhythmSession:
-    """Manages multiple rhythmic layers playing simultaneously.
-
-    Args:
-        bpm: Tempo in beats per minute
-        layers: List of RhythmLayer objects, or list of ints (for evenly spaced)
-        base_beats: The reference beat count (defines what "one beat" means for BPM)
-    """
+    """Manages multiple rhythmic layers playing simultaneously."""
 
     def __init__(self, bpm: float, layers: list, base_beats: int = 4):
         self.bpm = bpm
@@ -81,17 +95,14 @@ class PolyrhythmSession:
                 layer.layer_index = i
                 self.layers.append(layer)
             else:
-                # Integer — evenly spaced beats
                 self.layers.append(RhythmLayer(beats=layer, layer_index=i))
 
     @property
     def cycle_duration(self) -> float:
-        """Duration of one full cycle in seconds."""
         return (60.0 / self.bpm) * self.base_beats
 
     @property
     def total_subdivisions(self) -> int:
-        """LCM of all layer beat counts — the finest grid."""
         if not self.layers:
             return 1
         return lcm_multi([l.beats for l in self.layers])
