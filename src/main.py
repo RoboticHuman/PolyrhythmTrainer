@@ -26,6 +26,7 @@ from src.visuals.boxing import BoxingVisualizer
 from src.visuals.blacksmith import BlacksmithVisualizer
 from src.visuals.dancebattle import DanceBattleVisualizer
 from src.visuals.cashier import CashierVisualizer
+from src.visuals.samurai import SamuraiVisualizer
 from src.visuals.colors import LAYER_COLORS, BG_DARK
 from src.visuals.effects import CRTFilter
 from src.ui.hud import HUD
@@ -81,6 +82,7 @@ class App:
             BlacksmithVisualizer(self.screen),
             DanceBattleVisualizer(self.screen),
             CashierVisualizer(self.screen),
+            SamuraiVisualizer(self.screen),
         ]
         self.crt = CRTFilter(SCREEN_WIDTH, SCREEN_HEIGHT)
         self.crt.enabled = True

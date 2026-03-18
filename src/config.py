@@ -61,7 +61,7 @@ LAYER_KEY_LABELS = {
 }
 
 # Visual modes
-VISUAL_MODES = ["orbits", "gameoflife", "automata", "boxing", "blacksmith", "dancebattle", "cashier"]
+VISUAL_MODES = ["orbits", "gameoflife", "automata", "boxing", "blacksmith", "dancebattle", "cashier", "samurai"]
 
 
 # --- Preset system ---
