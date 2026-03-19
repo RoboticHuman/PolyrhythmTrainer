@@ -95,43 +95,16 @@ Ordered by difficulty across 5 tiers:
 ```
 PolyrhythmTrainer/
 ├── src/
-│   ├── main.py              # Entry point, state machine, game loop
-│   ├── config.py             # Presets, settings, difficulty modes
-│   ├── engine/
-│   │   ├── clock.py          # High-res timing (time.perf_counter)
-│   │   ├── rhythm.py         # Polyrhythm math, beat scheduling
-│   │   ├── scoring.py        # Hit detection, combos, scoring
-│   │   ├── records.py        # Personal best save/load (JSON)
-│   │   └── progression.py    # Tier-based unlocking
-│   ├── input/
-│   │   ├── keyboard.py       # Keyboard input handler
-│   │   └── midi.py           # MIDI input handler (mido)
-│   ├── audio/
-│   │   ├── metronome.py      # Threaded metronome with click generation
-│   │   └── hitsounds.py      # Hit feedback sounds per rating
-│   ├── visuals/
-│   │   ├── base.py           # Base visualizer class
-│   │   ├── colors.py         # Neon color palette, rating_color()
-│   │   ├── effects.py        # Bloom, CRT filter, particles
-│   │   ├── timeline.py       # Shared beat timeline component
-│   │   ├── speechbubble.py   # Shared speech bubble component
-│   │   ├── orbits.py         # Circular orbit visualizer
-│   │   ├── gameoflife.py     # Conway's Game of Life visualizer
-│   │   ├── automata.py       # 1D cellular automata visualizer
-│   │   ├── boxing.py         # Boxing ring visualizer
-│   │   ├── blacksmith.py     # Blacksmith forge visualizer
-│   │   └── dancebattle.py    # Dance battle visualizer
-│   └── ui/
-│       ├── hud.py            # Stats overlay
-│       ├── menu.py           # Main menu
-│       └── results.py        # Challenge results screen
-├── tests/
-│   ├── test_hit_detection.py # Beat detection + scoring tests
-│   └── test_metronome.py     # Real-time metronome tests (slow)
-├── data/                     # User saves (gitignored)
-│   ├── records.json          # Personal bests
-│   └── progress.json         # Tier unlock state
-└── pyproject.toml            # Project config + dependencies
+│   ├── main.py          # Entry point, game loop, state machine
+│   ├── config.py        # Presets, difficulty, constants
+│   ├── engine/          # Timing, rhythm math, scoring, progression
+│   ├── input/           # Keyboard and MIDI input handlers
+│   ├── audio/           # Metronome, hit sounds, wavetable synthesis
+│   ├── visuals/         # Visual modes and shared components
+│   └── ui/              # HUD, menus, results, sound designer
+├── tests/               # Automated tests
+├── data/                # User saves (gitignored)
+└── pyproject.toml       # Project config and dependencies
 ```
 
 ## Running Tests
