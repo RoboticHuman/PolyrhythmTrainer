@@ -38,6 +38,9 @@ uv run python -m src.main
 | Tab | Toggle stats HUD |
 | V | Cycle visual mode |
 | C | Toggle CRT filter |
+| P | Sound Designer (wavetable editor) |
+| I | MIDI Settings (device + layer mapping) |
+| M | Mute metronome |
 | H | Toggle hit sound mode (granular/uniform) |
 | N | Toggle difficulty (relaxed/strict) |
 | +/- | Adjust BPM |
@@ -70,6 +73,8 @@ uv run python -m src.main
 4. **Boxing** — Two fighters in a ring with referee, coaches, and crowd
 5. **Blacksmith** — Silhouette forge scene with sparks, customers, and speech bubbles
 6. **Dance Battle** — Disco dance-off with crowd, moderator, and CPU opponent AI
+7. **Cashier** — Grocery store checkout with conveyor belt, mood system, and impatient customers
+8. **Samurai** — Moonlit bridge duel with health bars, cherry blossoms, and sword clashes
 
 ## Presets (30 rhythms)
 
@@ -122,14 +127,14 @@ uv run pytest tests/ -v -m realtime
 
 ## MIDI Setup
 
-The app auto-detects MIDI devices on startup. To use a controller:
+MIDI uses `pygame.midi` — no extra dependencies or C++ compiler needed.
 
-1. Connect your MIDI controller before launching
-2. The first available device is opened automatically
-3. All note-on events map to Layer 0 by default
-4. Custom note-to-layer mapping can be configured in `src/input/midi.py`
-
-Note: `mido` is installed but the rtmidi backend requires a C++ compiler for the port driver. Keyboard input works without any extra setup.
+1. Connect your MIDI controller before launching — the first input device is opened automatically
+2. Press `I` during gameplay to open MIDI Settings:
+   - **Device dropdown** — select which MIDI device to use
+   - **Layer mapping** — click a layer, then press a key on your controller to assign it
+   - **F5** to refresh/reconnect if a device was power-cycled
+3. All note-on events map to Layer 0 by default until you assign them
 
 ## Adding a New Preset
 

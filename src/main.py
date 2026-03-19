@@ -33,6 +33,7 @@ from src.ui.hud import HUD
 from src.ui.menu import MainMenu
 from src.ui.results import ResultsScreen, calc_grade
 from src.ui.settings import SettingsOverlay
+from src.ui.midi_setup import MidiSetup
 
 
 # App states
@@ -93,6 +94,7 @@ class App:
         self.menu = MainMenu(self.screen)
         self.results_screen = ResultsScreen(self.screen)
         self.settings = SettingsOverlay(self.screen)
+        self.midi_setup = MidiSetup(self.screen, self.midi_input)
         self._apply_settings()  # Apply saved/default sound settings on startup
 
         # Cached fonts for countdown
@@ -149,7 +151,9 @@ class App:
             return
         devices = MidiInput.list_devices()
         if devices:
-            self.midi_input.open(devices[0])
+            if self.midi_input.open(devices[0]):
+                self.midi_input.start()
+                self.midi_setup.connected_name = devices[0]
 
     def _build_schedule(self):
         self.session.bpm = self.bpm
@@ -367,7 +371,16 @@ class App:
         self.hit_sounds._uniform_sound = _generate_custom(hf * 0.5, 35, hv, hw, decay=35)
 
     def _handle_playing_events(self, events: list[pygame.event.Event]):
-        # If settings overlay is open, route all events there
+        # If MIDI setup overlay is open, route events there
+        if self.midi_setup.visible:
+            for event in events:
+                if event.type == pygame.QUIT:
+                    self.running = False
+                    return
+                self.midi_setup.handle_event(event)
+            return
+
+        # If settings overlay is open, route events there
         if self.settings.visible:
             changed = False
             for event in events:
@@ -376,7 +389,6 @@ class App:
                     return
                 if self.settings.handle_event(event):
                     changed = True
-            # Apply changes immediately as user adjusts
             if changed:
                 self._apply_settings()
             return
@@ -387,6 +399,9 @@ class App:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_p:
                     self.settings.toggle()
+                    return
+                elif event.key == pygame.K_i:
+                    self.midi_setup.toggle()
                     return
                 elif event.key == pygame.K_ESCAPE:
                     self._stop_session()
@@ -475,14 +490,15 @@ class App:
             self._start_session()
 
     def _render_session(self, dt: float, events: list[pygame.event.Event]):
-        # Rhythm input
-        hits = self.keyboard_input.process_events(events)
-        for layer_idx, hit_time in hits:
-            self._process_hit(layer_idx, hit_time)
+        # Skip input processing when an overlay is open
+        if not self.settings.visible and not self.midi_setup.visible:
+            hits = self.keyboard_input.process_events(events)
+            for layer_idx, hit_time in hits:
+                self._process_hit(layer_idx, hit_time)
 
-        midi_hits = self.midi_input.get_hits()
-        for layer_idx, hit_time in midi_hits:
-            self._process_hit(layer_idx, hit_time)
+            midi_hits = self.midi_input.get_hits()
+            for layer_idx, hit_time in midi_hits:
+                self._process_hit(layer_idx, hit_time)
 
         # Auto-ramp check
         self._check_auto_ramp()
@@ -520,8 +536,9 @@ class App:
 
         self.crt.apply(self.screen)
 
-        # Settings overlay (on top of everything)
+        # Overlays (on top of everything)
         self.settings.render()
+        self.midi_setup.render()
 
         # Trim buffers
         if len(self._beat_events) > 50:
@@ -568,6 +585,7 @@ class App:
             pygame.display.flip()
 
         self._stop_session()
+        self.midi_input.close()
         pygame.quit()
 
 
