@@ -32,6 +32,7 @@ from src.visuals.effects import CRTFilter
 from src.ui.hud import HUD
 from src.ui.menu import MainMenu
 from src.ui.results import ResultsScreen, calc_grade
+from src.ui.settings import SettingsOverlay
 
 
 # App states
@@ -91,6 +92,8 @@ class App:
         self.hud = HUD(self.screen)
         self.menu = MainMenu(self.screen)
         self.results_screen = ResultsScreen(self.screen)
+        self.settings = SettingsOverlay(self.screen)
+        self._apply_settings()  # Apply saved/default sound settings on startup
 
         # Cached fonts for countdown
         self._countdown_font = pygame.font.SysFont("consolas", 120, bold=True)
@@ -313,12 +316,79 @@ class App:
                         self._countdown_start = time.perf_counter()
                         self.state = STATE_COUNTDOWN
 
+    def _apply_settings(self):
+        """Apply current settings values to audio systems, using custom wavetables."""
+        vals = self.settings.get_values()
+        from src.engine.scoring import HitRating
+
+        def _generate_custom(freq: float, duration_ms: int, volume: float,
+                             wavetable: list[float], decay: float = 40) -> pygame.mixer.Sound:
+            """Generate a sound using a custom wavetable shape."""
+            import numpy as np
+            n = int(44100 * duration_ms / 1000)
+            t = np.linspace(0, duration_ms / 1000, n, dtype=np.float32)
+            # Use wavetable: map time to table position based on frequency
+            table = np.array(wavetable, dtype=np.float32)
+            table_len = len(table)
+            indices = (t * freq * table_len) % table_len
+            idx_floor = indices.astype(np.int32) % table_len
+            idx_ceil = (idx_floor + 1) % table_len
+            frac = indices - indices.astype(np.int32)
+            wave = (table[idx_floor] * (1 - frac) + table[idx_ceil] * frac)
+            wave *= np.exp(-t * decay) * volume
+            # Fade in/out
+            attack = max(1, int(44100 * 0.001))
+            wave[:attack] *= np.linspace(0, 1, attack, dtype=np.float32)
+            release = max(1, int(44100 * 0.001))
+            wave[-release:] *= np.linspace(1, 0, release, dtype=np.float32)
+            wave = np.clip(wave, -0.95, 0.95)
+            samples = (wave * 32767).astype(np.int16)
+            stereo = np.column_stack((samples, samples))
+            return pygame.mixer.Sound(buffer=stereo.tobytes())
+
+        # Metronome clicks with custom wavetable
+        cf, cv, cw = vals["click_freq"], vals["click_vol"], vals["click_wave"]
+        self.metronome._sounds[0] = _generate_custom(cf, 25, cv, cw)
+        self.metronome._sounds[1] = _generate_custom(cf * 0.67, 30, cv * 0.85, cw)
+        self.metronome._sounds[2] = _generate_custom(cf * 0.5, 35, cv * 0.7, cw)
+
+        # Accent clicks
+        af, av, aw = vals["accent_freq"], vals["accent_vol"], vals["accent_wave"]
+        self.metronome._accent_sounds[0] = _generate_custom(af, 20, av, aw)
+        self.metronome._accent_sounds[1] = _generate_custom(af * 0.67, 25, av * 0.85, aw)
+        self.metronome._accent_sounds[2] = _generate_custom(af * 0.5, 28, av * 0.7, aw)
+
+        # Hit sounds
+        hf, hv, hw = vals["hit_freq"], vals["hit_vol"], vals["hit_wave"]
+        self.hit_sounds._granular[HitRating.PERFECT] = _generate_custom(hf, 60, hv, hw, decay=25)
+        self.hit_sounds._granular[HitRating.GOOD] = _generate_custom(hf * 0.75, 50, hv * 0.85, hw, decay=30)
+        self.hit_sounds._granular[HitRating.OK] = _generate_custom(hf * 0.3, 40, hv * 0.7, hw, decay=50)
+        self.hit_sounds._granular[HitRating.MISS] = _generate_custom(hf * 0.1, 70, hv * 0.6, hw, decay=20)
+        self.hit_sounds._uniform_sound = _generate_custom(hf * 0.5, 35, hv, hw, decay=35)
+
     def _handle_playing_events(self, events: list[pygame.event.Event]):
+        # If settings overlay is open, route all events there
+        if self.settings.visible:
+            changed = False
+            for event in events:
+                if event.type == pygame.QUIT:
+                    self.running = False
+                    return
+                if self.settings.handle_event(event):
+                    changed = True
+            # Apply changes immediately as user adjusts
+            if changed:
+                self._apply_settings()
+            return
+
         for event in events:
             if event.type == pygame.QUIT:
                 self.running = False
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
+                if event.key == pygame.K_p:
+                    self.settings.toggle()
+                    return
+                elif event.key == pygame.K_ESCAPE:
                     self._stop_session()
                     self.menu.reset()
                     self.state = STATE_MENU
@@ -449,6 +519,9 @@ class App:
         )
 
         self.crt.apply(self.screen)
+
+        # Settings overlay (on top of everything)
+        self.settings.render()
 
         # Trim buffers
         if len(self._beat_events) > 50:
