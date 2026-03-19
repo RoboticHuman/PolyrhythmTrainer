@@ -15,6 +15,19 @@ def generate_click(freq: float = 1000.0, duration_ms: int = 30,
     # Sine wave with exponential decay
     wave = np.sin(2 * np.pi * freq * t) * np.exp(-t * 40) * volume
 
+    # Fade-in (1ms attack) to avoid initial pop
+    attack_samples = max(1, int(sample_rate * 0.001))
+    fade_in = np.linspace(0, 1, attack_samples, dtype=np.float32)
+    wave[:attack_samples] *= fade_in
+
+    # Fade-out (1ms release) to avoid end-of-sample click
+    release_samples = max(1, int(sample_rate * 0.001))
+    fade_out = np.linspace(1, 0, release_samples, dtype=np.float32)
+    wave[-release_samples:] *= fade_out
+
+    # Clip to prevent distortion when sounds overlap
+    wave = np.clip(wave, -0.95, 0.95)
+
     # Convert to 16-bit stereo
     samples = (wave * 32767).astype(np.int16)
     stereo = np.column_stack((samples, samples))
@@ -33,6 +46,7 @@ class Metronome:
         self.sample_rate = sample_rate
         self._sounds: dict[int, pygame.mixer.Sound] = {}
         self._accent_sounds: dict[int, pygame.mixer.Sound] = {}
+        self.muted = False
         self._running = False
         self._thread: threading.Thread | None = None
 
@@ -48,14 +62,14 @@ class Metronome:
 
     def _generate_default_sounds(self):
         """Create distinct click sounds for different layers + accent variants."""
-        # Normal beats per layer
-        self._sounds[0] = generate_click(freq=1200, duration_ms=25, volume=0.5)
-        self._sounds[1] = generate_click(freq=800, duration_ms=30, volume=0.4)
-        self._sounds[2] = generate_click(freq=600, duration_ms=35, volume=0.35)
-        # Accented beats per layer (louder, sharper)
-        self._accent_sounds[0] = generate_click(freq=1500, duration_ms=20, volume=0.75)
-        self._accent_sounds[1] = generate_click(freq=1000, duration_ms=25, volume=0.65)
-        self._accent_sounds[2] = generate_click(freq=800, duration_ms=28, volume=0.55)
+        # Normal beats per layer (soft)
+        self._sounds[0] = generate_click(freq=1200, duration_ms=25, volume=0.35)
+        self._sounds[1] = generate_click(freq=800, duration_ms=30, volume=0.3)
+        self._sounds[2] = generate_click(freq=600, duration_ms=35, volume=0.25)
+        # Accented beats per layer (clear but not harsh)
+        self._accent_sounds[0] = generate_click(freq=1500, duration_ms=20, volume=0.55)
+        self._accent_sounds[1] = generate_click(freq=1000, duration_ms=25, volume=0.45)
+        self._accent_sounds[2] = generate_click(freq=800, duration_ms=28, volume=0.4)
 
     def get_sound(self, layer_index: int, accent: bool = False) -> pygame.mixer.Sound:
         sounds = self._accent_sounds if accent else self._sounds
@@ -115,8 +129,9 @@ class Metronome:
                     played.add(key)
                     continue
 
-                sound = self.get_sound(layer_idx, accent=is_accent)
-                sound.play()
+                if not self.muted:
+                    sound = self.get_sound(layer_idx, accent=is_accent)
+                    sound.play()
                 played.add(key)
 
                 if self.on_beat:

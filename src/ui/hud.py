@@ -122,6 +122,7 @@ class HUD:
             "Tab: Toggle stats",
             "V: Cycle visuals",
             "C: CRT filter",
+            "M: Mute metronome",
             "H: Hit sounds",
             "N: Difficulty",
             "+/-: BPM",

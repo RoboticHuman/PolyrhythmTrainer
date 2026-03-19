@@ -89,8 +89,9 @@ class OrbitsVisualizer(BaseVisualizer):
                 bx = int(self.cx + r * math.cos(angle))
                 by = int(self.cy + r * math.sin(angle))
 
-                is_accent = (bi == 0)
-                draw_size = 7 if is_accent else 5
+                accents = layer_data.get("accents", [])
+                is_accent = accents[bi] if bi < len(accents) else (bi == 0)
+                draw_size = 8 if is_accent else 5
 
                 # Hit flash
                 marker_key = (li, bi)
@@ -134,14 +135,13 @@ class OrbitsVisualizer(BaseVisualizer):
             draw_aa_circle(self.surface, (255, 255, 255), (ox, oy), 4)
 
             # Layer label with key hint
-            if total_layers > 1:
-                label_angle = phases[0] * math.pi * 2 - math.pi / 2
-                lx = int(self.cx + (r + 22) * math.cos(label_angle))
-                ly = int(self.cy + (r + 22) * math.sin(label_angle))
-                key_label = LAYER_KEY_LABELS.get(li, "")
-                label_text = f"{beats} [{key_label}]" if key_label else str(beats)
-                label_surf = self._label_font.render(label_text, True, color)
-                self.surface.blit(label_surf,
+            label_angle = phases[0] * math.pi * 2 - math.pi / 2
+            lx = int(self.cx + (r + 22) * math.cos(label_angle))
+            ly = int(self.cy + (r + 22) * math.sin(label_angle))
+            key_label = LAYER_KEY_LABELS.get(li, "")
+            label_text = f"{beats} [{key_label}]" if key_label else str(beats)
+            label_surf = self._label_font.render(label_text, True, color)
+            self.surface.blit(label_surf,
                                   (lx - label_surf.get_width() // 2,
                                    ly - label_surf.get_height() // 2))
 

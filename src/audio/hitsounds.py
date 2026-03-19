@@ -15,7 +15,16 @@ def _generate_tone(freq: float, duration_ms: int, volume: float,
     if harmonics:
         for h_freq, h_vol in harmonics:
             wave += np.sin(2 * np.pi * h_freq * t) * np.exp(-t * decay * 1.2) * h_vol
-    samples = (np.clip(wave, -1, 1) * 32767).astype(np.int16)
+
+    # Fade-in (1ms) to avoid pop
+    attack = max(1, int(sample_rate * 0.001))
+    wave[:attack] *= np.linspace(0, 1, attack, dtype=np.float32)
+
+    # Fade-out (1ms) to avoid end click
+    release = max(1, int(sample_rate * 0.001))
+    wave[-release:] *= np.linspace(1, 0, release, dtype=np.float32)
+
+    samples = (np.clip(wave, -0.95, 0.95) * 32767).astype(np.int16)
     stereo = np.column_stack((samples, samples))
     return pygame.mixer.Sound(buffer=stereo.tobytes())
 

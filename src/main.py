@@ -330,6 +330,8 @@ class App:
                     self.crt.enabled = not self.crt.enabled
                 elif event.key == pygame.K_h:
                     self.hit_sounds.toggle_mode()
+                elif event.key == pygame.K_m:
+                    self.metronome.muted = not self.metronome.muted
                 elif event.key == pygame.K_n:
                     idx = self._difficulty_keys.index(self.difficulty)
                     idx = (idx + 1) % len(self._difficulty_keys)
