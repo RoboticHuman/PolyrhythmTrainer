@@ -26,7 +26,7 @@ class HUD:
         self._rating_display_time = 0.0
 
         # Cached panel surface
-        self._panel = pygame.Surface((260, 260), pygame.SRCALPHA)
+        self._panel = pygame.Surface((260, 276), pygame.SRCALPHA)
         self._panel.fill(HUD_BG)
 
     def _init_fonts(self):
@@ -61,7 +61,7 @@ class HUD:
 
         # Background panel (pre-rendered)
         panel_w = 260
-        panel_h = 260
+        panel_h = 276
         self.surface.blit(self._panel, (margin, margin))
 
         x = margin + 12
@@ -70,7 +70,14 @@ class HUD:
         # BPM and rhythm
         self._draw_text(f"{bpm:.0f} BPM", x, y, self.font_large, CYAN)
         y += 32
-        self._draw_text(rhythm_desc, x, y, self.font_small, MAGENTA)
+        # Section and preset name on separate lines
+        if " > " in rhythm_desc:
+            section, preset_name = rhythm_desc.split(" > ", 1)
+            self._draw_text(section, x, y, self.font_tiny, TEXT_DIM)
+            y += 16
+            self._draw_text(preset_name, x, y, self.font_small, MAGENTA)
+        else:
+            self._draw_text(rhythm_desc, x, y, self.font_small, MAGENTA)
         y += 24
 
         # Separator
@@ -128,7 +135,7 @@ class HUD:
             "H: Hit sounds",
             "N: Difficulty",
             "+/-: BPM",
-            "[/]: Presets",
+            "[/]: Presets  \\: Section",
             "Esc: Quit",
         ]
         hy = self.surface.get_height() - margin - len(hints) * 16

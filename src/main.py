@@ -10,6 +10,7 @@ from src.config import (
     PRESET_INDEX_BY_ID, DEFAULT_PRESET_ID,
     LATENCY_COMPENSATION_MS,
     DIFFICULTY_MODES, DEFAULT_DIFFICULTY, set_difficulty,
+    SECTION_RANGES, get_section_for_index,
 )
 from src.engine.clock import Clock
 from src.engine.rhythm import PolyrhythmSession
@@ -145,6 +146,8 @@ class App:
         self.session = PolyrhythmSession(self.bpm, rhythm_layers, preset.base_beats)
         self.preset_name = preset.name
         self.preset_id = preset.id
+        sec_idx = get_section_for_index(idx)
+        self.preset_section = SECTION_RANGES[sec_idx][2]
 
     def _init_midi(self):
         if not MidiInput.available():
@@ -434,13 +437,27 @@ class App:
                     self._stop_session()
                     self._start_session()
                 elif self.game_mode == "freeplay":
-                    if event.key == pygame.K_LEFTBRACKET:
-                        self._change_preset((self.current_preset_idx - 1) % len(PRESETS))
+                    if event.key == pygame.K_BACKSLASH:
+                        cur_sec = get_section_for_index(self.current_preset_idx)
+                        next_sec = (cur_sec + 1) % len(SECTION_RANGES)
+                        self._change_preset(SECTION_RANGES[next_sec][0])
+                    elif event.key == pygame.K_LEFTBRACKET:
+                        sec_start, sec_end, _ = SECTION_RANGES[get_section_for_index(self.current_preset_idx)]
+                        new_idx = self.current_preset_idx - 1
+                        if new_idx < sec_start:
+                            new_idx = sec_end - 1
+                        self._change_preset(new_idx)
                     elif event.key == pygame.K_RIGHTBRACKET:
-                        self._change_preset((self.current_preset_idx + 1) % len(PRESETS))
+                        sec_start, sec_end, _ = SECTION_RANGES[get_section_for_index(self.current_preset_idx)]
+                        new_idx = self.current_preset_idx + 1
+                        if new_idx >= sec_end:
+                            new_idx = sec_start
+                        self._change_preset(new_idx)
                     elif pygame.K_1 <= event.key <= pygame.K_9:
-                        preset_idx = event.key - pygame.K_1
-                        if preset_idx < len(PRESETS):
+                        sec_start, sec_end, _ = SECTION_RANGES[get_section_for_index(self.current_preset_idx)]
+                        offset = event.key - pygame.K_1
+                        preset_idx = sec_start + offset
+                        if preset_idx < sec_end:
                             self._change_preset(preset_idx)
 
     def _handle_results_events(self, events: list[pygame.event.Event]):
@@ -528,7 +545,7 @@ class App:
 
         self.hud.render(
             stats=self.stats, bpm=self.bpm,
-            rhythm_desc=self.preset_name,
+            rhythm_desc=f"{self.preset_section} > {self.preset_name}",
             current_time=time.perf_counter(),
             visual_mode=mode_label,
             difficulty=self.difficulty,

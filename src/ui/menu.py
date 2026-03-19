@@ -4,7 +4,7 @@ import math
 import time
 import pygame
 import random as _random
-from src.config import PRESETS, VISUAL_MODES, SURPRISE_POOL, PRESET_INDEX_BY_ID, DEFAULT_PRESET_ID
+from src.config import PRESETS, VISUAL_MODES, SURPRISE_POOL, PRESET_INDEX_BY_ID, DEFAULT_PRESET_ID, SECTION_BREAKS
 from src.visuals.colors import (
     BG_DARK, CYAN, MAGENTA, NEON_GREEN, YELLOW, HOT_PINK, PURPLE,
     TEXT_COLOR, TEXT_DIM
@@ -209,7 +209,10 @@ class MainMenu:
         # Preset list
         unlocked = get_unlocked_preset_indices()
 
-        # Show a scrolling window of presets
+        # Build section header lookup: preset index -> section name
+        section_at = dict(SECTION_BREAKS)
+
+        # Show a scrolling window of presets (account for section headers in layout)
         visible = 10
         start = max(0, self.selected - visible // 2)
         start = min(start, max(0, len(PRESETS) - visible))
@@ -222,6 +225,15 @@ class MainMenu:
         }
 
         for i in range(start, min(start + visible, len(PRESETS))):
+            # Section header
+            if i in section_at:
+                section_label = section_at[i]
+                sec_surf = self._font_small.render(
+                    f"--- {section_label} ---", True, PURPLE
+                )
+                self.surface.blit(sec_surf, (cx - sec_surf.get_width() // 2, y))
+                y += 22
+
             preset = PRESETS[i]
             is_sel = (i == self.selected)
             is_locked = (self.mode == "progression" and i not in unlocked)
