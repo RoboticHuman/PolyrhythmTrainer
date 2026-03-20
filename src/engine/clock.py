@@ -74,8 +74,13 @@ class Clock:
         return int(self.elapsed() / self.cycle_duration) if self.cycle_duration > 0 else 0
 
     def set_bpm(self, bpm: float):
-        """Change BPM without resetting the clock."""
+        """Change BPM, adjusting start time so cycle_phase stays continuous."""
+        old_phase = self.cycle_phase()
         self.bpm = max(1.0, bpm)
+        new_cd = self.cycle_duration
+        # Shift start time so current phase maps to the same position
+        now = time.perf_counter()
+        self._start_time = now - old_phase * new_cd
 
     def time_to_next_beat(self) -> float:
         """Seconds until the next beat."""

@@ -161,7 +161,7 @@ class App:
 
     def _build_schedule(self):
         self.session.bpm = self.bpm
-        self.clock.bpm = self.bpm
+        self.clock.set_bpm(self.bpm)
         self.clock.beats_per_cycle = self.session.base_beats
 
         schedule = []
@@ -193,11 +193,9 @@ class App:
         ]
 
     def _rebuild_session(self):
-        """Update BPM/schedule without resetting position or stats."""
         self.metronome.stop()
         self._build_schedule()
-        # Restart metronome from current time but keep session start and stats
-        self.metronome.start(self._session_start)
+        self.metronome.start(self.clock._start_time)
 
     def _start_session(self):
         self.stats.reset()
@@ -263,7 +261,7 @@ class App:
         if layer_idx >= len(self.hit_detectors):
             return
 
-        result = self.hit_detectors[layer_idx].detect_hit(hit_time, self._session_start)
+        result = self.hit_detectors[layer_idx].detect_hit(hit_time, self.clock._start_time)
         if result is None:
             return
 
