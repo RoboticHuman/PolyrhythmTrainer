@@ -146,7 +146,6 @@ class App:
         self.session = PolyrhythmSession(self.bpm, rhythm_layers, preset.base_beats)
         self.preset_name = preset.name
         self.preset_id = preset.id
-        self._base_beats = [l.beats for l in self.session.layers]
         sec_idx = get_section_for_index(idx)
         self.preset_section = SECTION_RANGES[sec_idx][2]
 
@@ -233,9 +232,8 @@ class App:
         if len(self.session.layers) != 2:
             return
         layer = self.session.layers[layer_idx]
-        min_beats = self._base_beats[layer_idx]
         new_beats = layer.beats * factor if factor > 0 else layer.beats // 2
-        if new_beats < min_beats or new_beats > 32:
+        if new_beats < 2 or new_beats > 32:
             return
         from src.engine.rhythm import RhythmLayer
         self.session.layers[layer_idx] = RhythmLayer(
