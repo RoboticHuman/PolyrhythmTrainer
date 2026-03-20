@@ -55,6 +55,11 @@ class Metronome:
         self._cycle_duration: float = 1.0
         self._start_time: float = 0.0
 
+        # Subdivision schedule: list of phases (floats) for one cycle
+        self._sub_schedule: list[float] = []
+        self._sub_sound: pygame.mixer.Sound | None = None
+        self.subdivisions_muted = True
+
         # Callback for beat events (for visual sync)
         self.on_beat: callable = None  # (layer_index, beat_index, time) -> None
 
@@ -70,6 +75,7 @@ class Metronome:
         self._accent_sounds[0] = generate_click(freq=1500, duration_ms=20, volume=0.55)
         self._accent_sounds[1] = generate_click(freq=1000, duration_ms=25, volume=0.45)
         self._accent_sounds[2] = generate_click(freq=800, duration_ms=28, volume=0.4)
+        self._sub_sound = generate_click(freq=3000, duration_ms=12, volume=0.12)
 
     def get_sound(self, layer_index: int, accent: bool = False) -> pygame.mixer.Sound:
         sounds = self._accent_sounds if accent else self._sounds
@@ -78,9 +84,11 @@ class Metronome:
         return sounds.get(0, self._sounds.get(0))
 
     def set_schedule(self, schedule: list[tuple[float, int, int, bool]], cycle_duration: float):
-        """Schedule format: (phase, layer_idx, beat_idx, is_accent)."""
         self._schedule = sorted(schedule, key=lambda x: x[0])
         self._cycle_duration = cycle_duration
+
+    def set_subdivision_schedule(self, phases: list[float]):
+        self._sub_schedule = sorted(phases)
 
     def start(self, start_time: float):
         self._start_time = start_time
@@ -95,12 +103,11 @@ class Metronome:
             self._thread = None
 
     def _run(self):
-        """Main metronome loop — runs in dedicated thread."""
         if not self._schedule or self._cycle_duration <= 0:
             return
 
-        # Track which beats have been played: set of (cycle, layer, beat)
         played: set[tuple[int, int, int]] = set()
+        subs_played: set[tuple[int, int]] = set()
 
         while self._running:
             now = time.perf_counter()
@@ -122,10 +129,8 @@ class Metronome:
                 if key in played:
                     continue
 
-                # Only play if we're within 50ms of the scheduled time
                 beat_time = self._start_time + cycle_num * self._cycle_duration + sched_phase * self._cycle_duration
                 if now - beat_time > 0.05:
-                    # We're too late, mark as played but don't sound
                     played.add(key)
                     continue
 
@@ -140,9 +145,23 @@ class Metronome:
                     except Exception:
                         pass
 
-            # Cleanup old entries to prevent unbounded growth
+            if not self.subdivisions_muted and self._sub_sound:
+                for si, sub_phase in enumerate(self._sub_schedule):
+                    if sub_phase > phase:
+                        continue
+                    sub_key = (cycle_num, si)
+                    if sub_key in subs_played:
+                        continue
+                    sub_time = self._start_time + cycle_num * self._cycle_duration + sub_phase * self._cycle_duration
+                    if now - sub_time > 0.05:
+                        subs_played.add(sub_key)
+                        continue
+                    self._sub_sound.play()
+                    subs_played.add(sub_key)
+
             if len(played) > 200:
                 cutoff = cycle_num - 2
                 played = {k for k in played if k[0] >= cutoff}
+                subs_played = {k for k in subs_played if k[0] >= cutoff}
 
             time.sleep(0.001)

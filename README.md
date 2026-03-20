@@ -41,11 +41,13 @@ uv run python -m src.main
 | P | Sound Designer (wavetable editor) |
 | I | MIDI Settings (device + layer mapping) |
 | M | Mute metronome |
+| S | Toggle subdivision ticks (LCM grid audio) |
 | H | Toggle hit sound mode (granular/uniform) |
 | N | Toggle difficulty (relaxed/strict) |
 | +/- | Adjust BPM |
-| [ / ] | Cycle presets |
-| 1-9 | Jump to preset |
+| [ / ] | Cycle presets (within current section) |
+| \ | Switch section (Polyrhythms / Time Signatures) |
+| 1-9 | Jump to preset (within current section) |
 | R | Restart session |
 | Esc | Back to menu / Quit |
 
@@ -78,15 +80,26 @@ uv run python -m src.main
 
 ## Presets (30 rhythms)
 
-Ordered by difficulty across 5 tiers:
+Presets are split into two sections — **Polyrhythms** and **Time Signatures** — each ordered by difficulty across 5 tiers:
 
+**Polyrhythms**
 | Tier | Examples |
 |------|----------|
-| Easy | 3:2, 2:3, 5/4 (3+2) |
-| Medium | 3:4, 7/8 (2+2+3), Bossa Nova, Afro-Cuban 6/8, Rumba Clave |
-| Hard | 5:4, 9/8 (2+2+2+3), Taksim 10/8, grouped polyrhythms |
-| Very Hard | 7:4, 7:8, 11/8, 13/8 |
+| Easy | 3:2, 2:3 |
+| Medium | 3:4, 4:3 |
+| Hard | 5:4, 5:3, grouped polyrhythms (5/4 vs 4, 7/8 vs 3) |
+| Very Hard | 7:4, 7:8, 7/8 vs 4, 9/8 vs 4 |
 | Expert | 5:4:3, 3:4:5, 7:5:3 (3 simultaneous layers) |
+
+**Time Signatures**
+| Tier | Examples |
+|------|----------|
+| Easy | 5/4 (3+2), 5/4 (2+3) |
+| Medium | 7/8 (2+2+3), Bossa Nova, Afro-Cuban 6/8, Rumba Clave |
+| Hard | 9/8 (2+2+2+3), Taksim 10/8 |
+| Very Hard | 11/8, 13/8 |
+
+The subdivision ticks on the timeline and orbit visualizer show the LCM grid — the shared pulse that both layers divide evenly. Toggle `S` to hear it as an audio counting aid.
 
 ## Difficulty Modes
 

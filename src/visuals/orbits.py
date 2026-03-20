@@ -83,6 +83,22 @@ class OrbitsVisualizer(BaseVisualizer):
             pygame.draw.circle(self.surface, dim_color,
                                (self.cx, self.cy), int(r) + pulse_expand, 1)
 
+            # LCM grid ticks
+            lcm_phases = layer_data.get("lcm_phases", [])
+            beat_set = set(round(p, 6) for p in phases)
+            tick_color = (50, 45, 70)
+            tick_len = 6
+            for sub_phase in lcm_phases:
+                if round(sub_phase, 6) in beat_set:
+                    continue
+                angle = sub_phase * math.pi * 2 - math.pi / 2
+                cos_a, sin_a = math.cos(angle), math.sin(angle)
+                x1 = int(self.cx + (r - tick_len) * cos_a)
+                y1 = int(self.cy + (r - tick_len) * sin_a)
+                x2 = int(self.cx + (r + tick_len) * cos_a)
+                y2 = int(self.cy + (r + tick_len) * sin_a)
+                pygame.draw.line(self.surface, tick_color, (x1, y1), (x2, y2), 1)
+
             # Beat markers
             for bi, phase in enumerate(phases):
                 angle = phase * math.pi * 2 - math.pi / 2

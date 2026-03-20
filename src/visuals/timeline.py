@@ -121,39 +121,25 @@ class Timeline:
             pygame.draw.line(self.surface, dim,
                              (margin, ry), (self.width - margin, ry), 2)
 
-            # Subdivision ticks — small marks between beats to show the pulse grid
-            # Compute subdivisions from the gaps between beats
-            if len(phases) >= 2:
-                tick_color = (50, 45, 70)  # Muted purple — visible but not distracting
-                for bi in range(len(phases)):
-                    p_start = phases[bi]
-                    p_end = phases[(bi + 1) % len(phases)]
-                    if p_end <= p_start:
-                        p_end += 1.0  # Wrap around
+            lcm_phases = layer_data.get("lcm_phases", [])
+            beat_set = set(round(p, 6) for p in phases)
+            tick_color = (50, 45, 70)
+            for sub_phase in lcm_phases:
+                if round(sub_phase, 6) in beat_set:
+                    continue
+                sx = margin + int(sub_phase * track_w)
 
-                    # Find the gap in "base units" — subdivide into smallest whole unit
-                    gap = p_end - p_start
-                    # Aim for ticks roughly every 1/base_beats of the cycle
-                    beats_in_layer = len(phases)
-                    # Use ~2-4 subdivisions per gap, capped
-                    n_subs = max(2, min(6, round(gap * beats_in_layer * 3)))
+                dist = abs(cycle_phase - sub_phase)
+                dist = min(dist, 1.0 - dist)
+                proximity = max(0.0, 1.0 - dist / 0.04)
 
-                    for si in range(1, n_subs):
-                        sub_phase = (p_start + gap * si / n_subs) % 1.0
-                        sx = margin + int(sub_phase * track_w)
+                half_h = 5 + int(proximity * 4)
+                r = min(255, tick_color[0] + int(proximity * 120))
+                g = min(255, tick_color[1] + int(proximity * 100))
+                b = min(255, tick_color[2] + int(proximity * 80))
 
-                        # Animate: brighten and stretch when playhead is near
-                        dist = abs(cycle_phase - sub_phase)
-                        dist = min(dist, 1.0 - dist)  # Circular distance
-                        proximity = max(0.0, 1.0 - dist / 0.04)  # Glow within 4% of cycle
-
-                        half_h = 5 + int(proximity * 4)
-                        r = min(255, tick_color[0] + int(proximity * 120))
-                        g = min(255, tick_color[1] + int(proximity * 100))
-                        b = min(255, tick_color[2] + int(proximity * 80))
-
-                        pygame.draw.line(self.surface, (r, g, b),
-                                         (sx, ry - half_h), (sx, ry + half_h), 1)
+                pygame.draw.line(self.surface, (r, g, b),
+                                 (sx, ry - half_h), (sx, ry + half_h), 1)
 
             # Key label on the left
             key_label = LAYER_KEY_LABELS.get(li, "")

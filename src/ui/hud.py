@@ -132,6 +132,7 @@ class HUD:
             "P: Sound Designer",
             "I: MIDI Settings",
             "M: Mute metronome",
+            "S: Sub ticks (audio)",
             "H: Hit sounds",
             "N: Difficulty",
             "+/-: BPM",

@@ -170,10 +170,15 @@ class App:
                 schedule.append((phase, li, bi, is_accent))
         self.metronome.set_schedule(schedule, self.session.cycle_duration)
 
+        lcm_grid = self.session.total_subdivisions
+        sub_phases = [round(i / lcm_grid, 6) for i in range(lcm_grid)]
+        self.metronome.set_subdivision_schedule(sub_phases)
+
         self.hit_detectors = [
             HitDetector(self.session.cycle_duration, layer.beat_phases)
             for layer in self.session.layers
         ]
+        lcm_phases = [i / lcm_grid for i in range(lcm_grid)]
         self._cached_layer_data = [
             {
                 "beats": layer.beats,
@@ -181,6 +186,7 @@ class App:
                 "accents": layer.accents,
                 "color": LAYER_COLORS[i % len(LAYER_COLORS)],
                 "name": layer.name,
+                "lcm_phases": lcm_phases,
             }
             for i, layer in enumerate(self.session.layers)
         ]
@@ -420,6 +426,8 @@ class App:
                     self.hit_sounds.toggle_mode()
                 elif event.key == pygame.K_m:
                     self.metronome.muted = not self.metronome.muted
+                elif event.key == pygame.K_s:
+                    self.metronome.subdivisions_muted = not self.metronome.subdivisions_muted
                 elif event.key == pygame.K_n:
                     idx = self._difficulty_keys.index(self.difficulty)
                     idx = (idx + 1) % len(self._difficulty_keys)
