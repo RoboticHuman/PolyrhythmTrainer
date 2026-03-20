@@ -136,7 +136,10 @@ class HUD:
             "H: Hit sounds",
             "N: Difficulty",
             "+/-: BPM",
-            "[/]: Presets  \\: Section",
+            "[ / ]: Presets",
+            "\\: Section",
+            "Shift+[/]: x2/halve L0",
+            "Ctrl+[/]: x2/halve L1",
             "Esc: Quit",
         ]
         hy = self.surface.get_height() - margin - len(hints) * 16

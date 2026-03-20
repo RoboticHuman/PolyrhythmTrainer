@@ -46,6 +46,8 @@ uv run python -m src.main
 | N | Toggle difficulty (relaxed/strict) |
 | +/- | Adjust BPM |
 | [ / ] | Cycle presets (within current section) |
+| Shift+[ / ] | Halve / double layer 0 beats (2-layer presets) |
+| Ctrl+[ / ] | Halve / double layer 1 beats (2-layer presets) |
 | \ | Switch section (Polyrhythms / Time Signatures) |
 | 1-9 | Jump to preset (within current section) |
 | R | Restart session |
